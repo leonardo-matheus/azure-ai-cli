@@ -495,11 +495,192 @@ fn handle_command(
             CommandResult::Processed
         }
 
+        "/install" => {
+            match install_aicli(ui) {
+                Ok(()) => {}
+                Err(e) => ui.print_error(&format!("Installation failed: {}", e)),
+            }
+            CommandResult::Processed
+        }
+
+        "/uninstall" => {
+            match uninstall_aicli(ui) {
+                Ok(()) => {}
+                Err(e) => ui.print_error(&format!("Uninstall failed: {}", e)),
+            }
+            CommandResult::Processed
+        }
+
         _ => {
             ui.print_error(&format!("{}: {}", ui.strings.unknown_cmd(), command));
             CommandResult::Continue
         }
     }
+}
+
+/// Install AICLI to user's PATH
+fn install_aicli(ui: &UI) -> Result<()> {
+    use std::fs;
+    use std::path::PathBuf;
+
+    // Get current executable path
+    let current_exe = std::env::current_exe()
+        .map_err(|e| anyhow::anyhow!("Failed to get current executable: {}", e))?;
+
+    // Determine install directory based on OS
+    let (install_dir, exe_name) = if cfg!(windows) {
+        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
+        (home.join(".aicli").join("bin"), "aicli.exe")
+    } else {
+        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
+        (home.join(".local").join("bin"), "aicli")
+    };
+
+    // Create install directory
+    fs::create_dir_all(&install_dir)
+        .map_err(|e| anyhow::anyhow!("Failed to create directory: {}", e))?;
+
+    let install_path = install_dir.join(exe_name);
+
+    ui.print_info(&format!("Installing to: {}", install_path.display()));
+
+    // Copy executable
+    fs::copy(&current_exe, &install_path)
+        .map_err(|e| anyhow::anyhow!("Failed to copy executable: {}", e))?;
+
+    ui.print_success("Binary installed successfully!");
+
+    // Add to PATH
+    if cfg!(windows) {
+        add_to_path_windows(&install_dir, ui)?;
+    } else {
+        add_to_path_unix(&install_dir, ui)?;
+    }
+
+    println!();
+    ui.print_success("Installation complete!");
+    ui.print_info("Restart your terminal and run 'aicli' from anywhere.");
+
+    Ok(())
+}
+
+/// Add directory to PATH on Windows
+#[cfg(windows)]
+fn add_to_path_windows(install_dir: &std::path::Path, ui: &UI) -> Result<()> {
+    use std::process::Command;
+
+    let install_dir_str = install_dir.to_string_lossy();
+
+    // Check if already in PATH
+    if let Ok(path) = std::env::var("PATH") {
+        if path.to_lowercase().contains(&install_dir_str.to_lowercase()) {
+            ui.print_info("Directory already in PATH");
+            return Ok(());
+        }
+    }
+
+    ui.print_info("Adding to PATH...");
+
+    // Use PowerShell to add to user PATH permanently
+    let ps_script = format!(
+        r#"$currentPath = [Environment]::GetEnvironmentVariable('Path', 'User'); if ($currentPath -notlike '*{}*') {{ [Environment]::SetEnvironmentVariable('Path', $currentPath + ';{}', 'User') }}"#,
+        install_dir_str.replace("\\", "\\\\"),
+        install_dir_str.replace("\\", "\\\\")
+    );
+
+    let output = Command::new("powershell")
+        .args(["-Command", &ps_script])
+        .output()
+        .map_err(|e| anyhow::anyhow!("Failed to run PowerShell: {}", e))?;
+
+    if output.status.success() {
+        ui.print_success("Added to user PATH");
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        ui.print_error(&format!("Failed to add to PATH: {}", stderr));
+        ui.print_info(&format!("Please add manually: {}", install_dir_str));
+    }
+
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn add_to_path_windows(_install_dir: &std::path::Path, _ui: &UI) -> Result<()> {
+    Ok(())
+}
+
+/// Add directory to PATH on Unix (Linux/Mac)
+#[cfg(not(windows))]
+fn add_to_path_unix(install_dir: &std::path::Path, ui: &UI) -> Result<()> {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
+    let install_dir_str = install_dir.to_string_lossy();
+    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
+
+    // Determine shell config file
+    let shell = std::env::var("SHELL").unwrap_or_default();
+    let config_file = if shell.contains("zsh") {
+        home.join(".zshrc")
+    } else {
+        home.join(".bashrc")
+    };
+
+    // Check if already added
+    if let Ok(content) = std::fs::read_to_string(&config_file) {
+        if content.contains(&install_dir_str.to_string()) {
+            ui.print_info("PATH already configured");
+            return Ok(());
+        }
+    }
+
+    ui.print_info(&format!("Adding to {}", config_file.display()));
+
+    // Append export to shell config
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&config_file)
+        .map_err(|e| anyhow::anyhow!("Failed to open {}: {}", config_file.display(), e))?;
+
+    writeln!(file, "\n# AICLI")?;
+    writeln!(file, "export PATH=\"{}:$PATH\"", install_dir_str)?;
+
+    ui.print_success(&format!("Added to {}", config_file.display()));
+
+    Ok(())
+}
+
+#[cfg(windows)]
+fn add_to_path_unix(_install_dir: &std::path::Path, _ui: &UI) -> Result<()> {
+    Ok(())
+}
+
+/// Uninstall AICLI from user's PATH
+fn uninstall_aicli(ui: &UI) -> Result<()> {
+    use std::fs;
+
+    let (install_dir, exe_name) = if cfg!(windows) {
+        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
+        (home.join(".aicli").join("bin"), "aicli.exe")
+    } else {
+        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot find home directory"))?;
+        (home.join(".local").join("bin"), "aicli")
+    };
+
+    let install_path = install_dir.join(exe_name);
+
+    if install_path.exists() {
+        fs::remove_file(&install_path)
+            .map_err(|e| anyhow::anyhow!("Failed to remove {}: {}", install_path.display(), e))?;
+        ui.print_success(&format!("Removed {}", install_path.display()));
+    } else {
+        ui.print_info("AICLI not installed in user directory");
+    }
+
+    ui.print_info("Note: PATH entry not removed. You can remove it manually from your shell config.");
+
+    Ok(())
 }
 
 /// Estimate token count for messages (rough: 1 token ≈ 4 chars)

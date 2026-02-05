@@ -750,6 +750,8 @@ impl UI {
         println!("    \x1b[38;5;220m/model\x1b[0m         {}", s.cmd_model());
         println!("    \x1b[38;5;220m/config\x1b[0m        {}", s.cmd_config());
         println!("    \x1b[38;5;220m/lang\x1b[0m          {}", s.cmd_lang());
+        println!("    \x1b[38;5;220m/install\x1b[0m       Install AICLI globally");
+        println!("    \x1b[38;5;220m/uninstall\x1b[0m     Uninstall AICLI");
         println!();
         self.print_separator();
         println!();

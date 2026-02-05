@@ -18,6 +18,8 @@ const COMMANDS: &[(&str, &str)] = &[
     ("/history", "Show conversation history"),
     ("/add-model", "Add a new model"),
     ("/lang", "Change language (en/pt)"),
+    ("/install", "Install AICLI globally"),
+    ("/uninstall", "Uninstall AICLI"),
 ];
 
 #[derive(Helper)]
