@@ -5,57 +5,29 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version tag (e.g., v1.0.0)'
-        required: true
-        default: 'v1.0.0'
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-windows:
-    name: Build Windows x64
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Build release binary
-        run: cargo build --release
-
-      - name: Package binary
-        run: |
-          cd target/release
-          7z a ../../aicli-windows-x64.zip aicli.exe
-        shell: bash
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: aicli-windows-x64.zip
-          path: aicli-windows-x64.zip
-
   build-linux:
     name: Build Linux x64
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
+      - name: Setup Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
 
-      - name: Build release binary
-        run: cargo build --release
+      - name: Build
+        run: |
+          source $HOME/.cargo/env
+          cargo build --release
 
-      - name: Package binary
+      - name: Package
         run: |
           cd target/release
           tar -czvf ../../aicli-linux-x64.tar.gz aicli
@@ -63,99 +35,84 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicli-linux-x64.tar.gz
+          name: aicli-linux-x64
           path: aicli-linux-x64.tar.gz
 
-  build-linux-arm64:
-    name: Build Linux ARM64
-    runs-on: ubuntu-latest
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
-
-      - name: Install cross-compilation tools
+      - name: Setup Rust
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          Invoke-WebRequest -Uri https://win.rustup.rs/x86_64 -OutFile rustup-init.exe
+          .\rustup-init.exe -y
+          echo "$env:USERPROFILE\.cargo\bin" >> $env:GITHUB_PATH
 
-      - name: Build release binary
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        run: cargo build --release --target aarch64-unknown-linux-gnu
+      - name: Build
+        run: cargo build --release
 
-      - name: Package binary
+      - name: Package
+        shell: bash
         run: |
-          cd target/aarch64-unknown-linux-gnu/release
-          tar -czvf ../../../aicli-linux-arm64.tar.gz aicli
+          cd target/release
+          7z a ../../aicli-windows-x64.zip aicli.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: aicli-linux-arm64.tar.gz
-          path: aicli-linux-arm64.tar.gz
+          name: aicli-windows-x64
+          path: aicli-windows-x64.zip
 
   release:
     name: Create Release
-    needs: [build-windows, build-linux, build-linux-arm64]
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: List artifacts
-        run: find artifacts -type f
+      - name: List files
+        run: |
+          echo "Contents of artifacts directory:"
+          find artifacts -type f
+          ls -la artifacts/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
-          name: AICLI ${{ github.event.inputs.version || github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          name: AICLI ${{ github.ref_name }}
           body: |
-            ## AICLI Release ${{ github.event.inputs.version || github.ref_name }}
+            ## AICLI Release ${{ github.ref_name }}
 
             ### Downloads
-
-            | Platform | Architecture | File |
-            |----------|--------------|------|
-            | Windows | x64 | `aicli-windows-x64.zip` |
-            | Linux | x64 | `aicli-linux-x64.tar.gz` |
-            | Linux | ARM64 | `aicli-linux-arm64.tar.gz` |
+            - **Linux x64**: `aicli-linux-x64.tar.gz`
+            - **Windows x64**: `aicli-windows-x64.zip`
 
             ### Installation
 
-            **Windows:**
-            ```powershell
-            # Extract and run
-            Expand-Archive aicli-windows-x64.zip
-            .\aicli.exe
-            # Install globally
-            ❯ /install
-            ```
-
             **Linux:**
             ```bash
-            # Extract and run
             tar -xzf aicli-linux-x64.tar.gz
             chmod +x aicli
             ./aicli
-            # Install globally
-            ❯ /install
             ```
 
-            ### What's New
-
-            See [CHANGELOG.md](https://github.com/leonardo-matheus/azure-ai-cli/blob/master/CHANGELOG.md) for details.
+            **Windows:**
+            ```powershell
+            Expand-Archive aicli-windows-x64.zip
+            .\aicli.exe
+            ```
           files: |
-            artifacts/**/*
+            artifacts/aicli-linux-x64/aicli-linux-x64.tar.gz
+            artifacts/aicli-windows-x64/aicli-windows-x64.zip
           draft: false
           prerelease: false
