@@ -1,7 +1,7 @@
 use crossterm::{
     cursor,
     execute,
-    terminal::{self, ClearType, disable_raw_mode, enable_raw_mode},
+    terminal::{self, ClearType},
 };
 use std::io::{self, Write};
 use std::path::Path;
@@ -640,128 +640,45 @@ impl UI {
         println!();
     }
 
-    /// Interactive model selection menu
+    /// Print model list and return selected index based on user input
     /// Returns: Some(index) for model selection, Some(models.len()) for "Add model", None for cancel
     pub fn select_model_interactive(&self, models: &[(String, String, bool)]) -> Option<usize> {
-        use crossterm::event::{poll, read, Event, KeyCode, KeyEventKind};
-        use std::time::Duration;
+        println!();
+        println!("  \x1b[1;37m{}\x1b[0m", self.strings.title_models());
+        println!();
 
-        let total_options = models.len() + 1; // +1 for "Add model"
-        let mut selected: usize = models.iter().position(|(_, _, active)| *active).unwrap_or(0);
+        for (i, (name, model_type, is_active)) in models.iter().enumerate() {
+            let marker = if *is_active { "\x1b[38;5;82m●\x1b[0m" } else { "\x1b[38;5;240m○\x1b[0m" };
+            let name_style = if *is_active { "\x1b[1;38;5;220m" } else { "" };
+            println!("    \x1b[38;5;75m{}.\x1b[0m {} {}{}\x1b[0m \x1b[38;5;245m({})\x1b[0m",
+                i + 1, marker, name_style, name, model_type);
+        }
 
-        // Enable raw mode for keyboard input
-        if enable_raw_mode().is_err() {
+        println!("    \x1b[38;5;75m{}.\x1b[0m \x1b[38;5;82m+ Add model\x1b[0m", models.len() + 1);
+        println!();
+        println!("  \x1b[38;5;245mDigite o número (1-{}) ou 'q' para cancelar:\x1b[0m", models.len() + 1);
+
+        // Return None - the actual selection will be handled by the chat loop
+        // by reading the next input
+        None
+    }
+
+    /// Parse model selection from user input
+    /// Returns: Some(index) for valid selection, None for cancel or invalid
+    pub fn parse_model_selection(&self, input: &str, total_models: usize) -> Option<usize> {
+        let input = input.trim().to_lowercase();
+
+        if input == "q" || input == "cancel" || input == "cancelar" {
             return None;
         }
 
-        // Hide cursor during selection
-        let _ = execute!(io::stdout(), cursor::Hide);
-
-        println!();
-        println!("  \x1b[1;37m{}\x1b[0m", self.strings.title_models());
-        println!("  \x1b[38;5;245mUse 1-{} to select, Enter to confirm, q to cancel\x1b[0m", total_options);
-        println!();
-
-        // Initial render
-        self.render_model_menu(models, selected);
-
-        let result = loop {
-            // Poll for events with timeout
-            if poll(Duration::from_millis(100)).unwrap_or(false) {
-                if let Ok(event) = read() {
-                    match event {
-                        Event::Key(key_event) => {
-                            // Only process key press events (not release)
-                            if key_event.kind != KeyEventKind::Press {
-                                continue;
-                            }
-
-                            match key_event.code {
-                                KeyCode::Up => {
-                                    if selected > 0 {
-                                        selected -= 1;
-                                    } else {
-                                        selected = total_options - 1;
-                                    }
-                                }
-                                KeyCode::Down => {
-                                    if selected < total_options - 1 {
-                                        selected += 1;
-                                    } else {
-                                        selected = 0;
-                                    }
-                                }
-                                KeyCode::Char('k') | KeyCode::Char('K') => {
-                                    if selected > 0 {
-                                        selected -= 1;
-                                    } else {
-                                        selected = total_options - 1;
-                                    }
-                                }
-                                KeyCode::Char('j') | KeyCode::Char('J') => {
-                                    if selected < total_options - 1 {
-                                        selected += 1;
-                                    } else {
-                                        selected = 0;
-                                    }
-                                }
-                                KeyCode::Char(c) if c.is_ascii_digit() => {
-                                    let num = c.to_digit(10).unwrap() as usize;
-                                    if num >= 1 && num <= total_options {
-                                        selected = num - 1;
-                                        // Re-render and select
-                                        print!("\x1b[{}A", total_options + 1);
-                                        io::stdout().flush().unwrap();
-                                        self.render_model_menu(models, selected);
-                                        break Some(selected);
-                                    }
-                                }
-                                KeyCode::Enter | KeyCode::Char(' ') => {
-                                    break Some(selected);
-                                }
-                                KeyCode::Esc | KeyCode::Char('q') | KeyCode::Char('Q') => {
-                                    break None;
-                                }
-                                _ => continue,
-                            }
-
-                            // Re-render menu (move up and redraw)
-                            print!("\x1b[{}A", total_options + 1);
-                            io::stdout().flush().unwrap();
-                            self.render_model_menu(models, selected);
-                        }
-                        _ => {}
-                    }
-                }
+        if let Ok(num) = input.parse::<usize>() {
+            if num >= 1 && num <= total_models + 1 {
+                return Some(num - 1);
             }
-        };
-
-        // Restore terminal
-        let _ = disable_raw_mode();
-        let _ = execute!(io::stdout(), cursor::Show);
-
-        // Move to end and add newline
-        println!();
-
-        result
-    }
-
-    fn render_model_menu(&self, models: &[(String, String, bool)], selected: usize) {
-        for (i, (name, model_type, is_active)) in models.iter().enumerate() {
-            let pointer = if i == selected { "\x1b[38;5;39m❯\x1b[0m" } else { " " };
-            let marker = if *is_active { "\x1b[38;5;82m●\x1b[0m" } else { "\x1b[38;5;240m○\x1b[0m" };
-            let name_style = if i == selected { "\x1b[1;38;5;220m" } else if *is_active { "\x1b[38;5;220m" } else { "" };
-            println!("\x1b[2K  {} \x1b[38;5;245m{}.\x1b[0m {} {}{}\x1b[0m \x1b[38;5;245m({})\x1b[0m",
-                pointer, i + 1, marker, name_style, name, model_type);
         }
 
-        // "Add model" option
-        let add_pointer = if selected == models.len() { "\x1b[38;5;39m❯\x1b[0m" } else { " " };
-        let add_style = if selected == models.len() { "\x1b[1;38;5;82m" } else { "\x1b[38;5;82m" };
-        println!("\x1b[2K  {} \x1b[38;5;245m{}.\x1b[0m {}+ Add model\x1b[0m", add_pointer, models.len() + 1, add_style);
-        println!();
-
-        io::stdout().flush().unwrap();
+        None
     }
 
     pub fn print_language_menu(&self, current_lang: Language) {

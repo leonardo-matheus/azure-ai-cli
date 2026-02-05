@@ -371,7 +371,7 @@ fn handle_command(
 
         "/model" => {
             if args.is_empty() {
-                // Interactive model selection
+                // Show model list
                 let models: Vec<(String, String, bool)> = config.models
                     .iter()
                     .map(|(name, model)| {
@@ -379,31 +379,44 @@ fn handle_command(
                     })
                     .collect();
 
-                if let Some(selected_idx) = ui.select_model_interactive(&models) {
-                    if selected_idx == models.len() {
-                        // "Add model" option selected
-                        if let Err(e) = add_model_interactive(config) {
-                            ui.print_error(&format!("Failed: {}", e));
-                        } else {
-                            let model_names: Vec<String> = config.models.keys().cloned().collect();
-                            input_reader.update_models(model_names);
-                        }
-                    } else if selected_idx < models.len() {
-                        let (selected_name, _, is_active) = &models[selected_idx];
-                        if !is_active {
-                            // Switch to selected model
-                            config.set_active_model(selected_name);
-                            if let Some(model) = config.get_active_model() {
-                                client.update_config(model.clone());
-                                ui.set_context_max(client.get_max_context());
-                                ui.set_model_info(&model.name, &model.model_type.to_string(), &ui.current_path.clone());
-                                let _ = save_config(config);
-                                ui.print_model_switch(&model.name, &model.model_type.to_string());
+                // Show menu
+                ui.select_model_interactive(&models);
+
+                // Read selection
+                print!("  \x1b[38;5;117m❯\x1b[0m ");
+                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+
+                let mut selection = String::new();
+                if std::io::stdin().read_line(&mut selection).is_ok() {
+                    if let Some(selected_idx) = ui.parse_model_selection(&selection, models.len()) {
+                        if selected_idx == models.len() {
+                            // "Add model" option selected
+                            if let Err(e) = add_model_interactive(config) {
+                                ui.print_error(&format!("Failed: {}", e));
+                            } else {
                                 let model_names: Vec<String> = config.models.keys().cloned().collect();
                                 input_reader.update_models(model_names);
                             }
+                        } else if selected_idx < models.len() {
+                            let (selected_name, _, is_active) = &models[selected_idx];
+                            if !is_active {
+                                // Switch to selected model
+                                config.set_active_model(selected_name);
+                                if let Some(model) = config.get_active_model() {
+                                    client.update_config(model.clone());
+                                    ui.set_context_max(client.get_max_context());
+                                    ui.set_model_info(&model.name, &model.model_type.to_string(), &ui.current_path.clone());
+                                    let _ = save_config(config);
+                                    ui.print_model_switch(&model.name, &model.model_type.to_string());
+                                    let model_names: Vec<String> = config.models.keys().cloned().collect();
+                                    input_reader.update_models(model_names);
+                                }
+                            } else {
+                                ui.print_info("Already using this model");
+                            }
                         }
-                        // If already active, do nothing
+                    } else {
+                        ui.print_info("Selection cancelled");
                     }
                 }
             } else {
