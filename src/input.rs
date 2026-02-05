@@ -300,8 +300,10 @@ impl InputReader {
         let helper = InputHelper::new(model_names);
         let config = rustyline::Config::builder()
             .completion_type(rustyline::CompletionType::List)
+            .completion_prompt_limit(10)
             .edit_mode(rustyline::EditMode::Emacs)
             .auto_add_history(true)
+            .tab_stop(4)
             .build();
 
         let mut editor = Editor::with_config(config).expect("Failed to create editor");
