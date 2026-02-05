@@ -19,6 +19,8 @@ pub struct UI {
     pub current_model: String,
     pub current_model_type: String,
     pub current_path: String,
+    in_code_block: std::cell::Cell<bool>,
+    code_buffer: std::cell::RefCell<String>,
 }
 
 impl UI {
@@ -32,6 +34,8 @@ impl UI {
             current_model: String::new(),
             current_model_type: String::new(),
             current_path: String::new(),
+            in_code_block: std::cell::Cell::new(false),
+            code_buffer: std::cell::RefCell::new(String::new()),
         }
     }
 
@@ -174,10 +178,159 @@ impl UI {
     }
 
     pub fn print_token(&self, token: &str) {
-        // Handle newlines to maintain indentation
-        let indented = token.replace("\n", "\n  ");
-        print!("{}", indented);
+        let mut buffer = self.code_buffer.borrow_mut();
+        buffer.push_str(token);
+
+        // Process the buffer looking for code block markers
+        while let Some(pos) = buffer.find("```") {
+            // Print everything before the marker
+            let before = &buffer[..pos];
+            if !before.is_empty() {
+                let formatted = if self.in_code_block.get() {
+                    format!("\x1b[38;5;222m{}\x1b[0m", before.replace("\n", "\n  "))
+                } else {
+                    before.replace("\n", "\n  ")
+                };
+                print!("{}", formatted);
+            }
+
+            // Toggle code block state
+            if self.in_code_block.get() {
+                // End of code block
+                print!("\x1b[38;5;240m───┘\x1b[0m");
+                self.in_code_block.set(false);
+            } else {
+                // Start of code block - find the language tag
+                let after_marker = &buffer[pos + 3..];
+                let lang_end = after_marker.find('\n').unwrap_or(0);
+                let lang = &after_marker[..lang_end];
+                let lang_display = if lang.is_empty() { "" } else { lang };
+                print!("\n  \x1b[38;5;240m┌─ {}\x1b[0m\n  ", lang_display);
+                self.in_code_block.set(true);
+                // Remove the language tag from buffer
+                *buffer = buffer[pos + 3 + lang_end..].to_string();
+                continue;
+            }
+
+            *buffer = buffer[pos + 3..].to_string();
+        }
+
+        // Print remaining buffer content
+        if !buffer.is_empty() && !buffer.contains("``") {
+            let content = buffer.clone();
+            buffer.clear();
+
+            let formatted = if self.in_code_block.get() {
+                format!("\x1b[38;5;222m{}\x1b[0m", content.replace("\n", "\n  "))
+            } else {
+                content.replace("\n", "\n  ")
+            };
+            print!("{}", formatted);
+        }
+
         io::stdout().flush().unwrap();
+    }
+
+    pub fn reset_code_state(&self) {
+        self.in_code_block.set(false);
+        self.code_buffer.borrow_mut().clear();
+    }
+
+    /// Format complete response with syntax highlighting for code blocks
+    pub fn format_response(&self, content: &str) -> String {
+        let mut result = String::new();
+        let mut in_code_block = false;
+        let mut code_lang = String::new();
+        let mut code_buffer = String::new();
+
+        for line in content.lines() {
+            if line.starts_with("```") {
+                if in_code_block {
+                    // End of code block - render it
+                    result.push_str(&self.render_code_block(&code_lang, &code_buffer));
+                    code_buffer.clear();
+                    code_lang.clear();
+                    in_code_block = false;
+                } else {
+                    // Start of code block
+                    in_code_block = true;
+                    code_lang = line.trim_start_matches('`').to_string();
+                }
+            } else if in_code_block {
+                code_buffer.push_str(line);
+                code_buffer.push('\n');
+            } else {
+                // Regular text - apply inline formatting
+                result.push_str(&self.format_inline(line));
+                result.push('\n');
+            }
+        }
+
+        // Handle unclosed code block
+        if in_code_block && !code_buffer.is_empty() {
+            result.push_str(&self.render_code_block(&code_lang, &code_buffer));
+        }
+
+        result
+    }
+
+    fn render_code_block(&self, lang: &str, code: &str) -> String {
+        let w = self.term_width.min(100);
+        let border = "─".repeat(w - 6);
+
+        let lang_display = if lang.is_empty() { "code" } else { lang };
+
+        let mut result = String::new();
+        result.push_str(&format!("\n  \x1b[38;5;240m┌─ {} {}\x1b[0m\n", lang_display, border.chars().take(w - 10 - lang_display.len()).collect::<String>()));
+
+        for line in code.lines() {
+            let truncated = if line.len() > w - 8 {
+                format!("{}...", &line[..w - 11])
+            } else {
+                line.to_string()
+            };
+            result.push_str(&format!("  \x1b[38;5;240m│\x1b[0m \x1b[38;5;222m{}\x1b[0m\n", truncated));
+        }
+
+        result.push_str(&format!("  \x1b[38;5;240m└{}\x1b[0m\n", border));
+        result
+    }
+
+    fn format_inline(&self, line: &str) -> String {
+        let mut result = line.to_string();
+
+        // Bold: **text** or __text__
+        let bold_re = regex::Regex::new(r"\*\*(.+?)\*\*|__(.+?)__").unwrap();
+        result = bold_re.replace_all(&result, "\x1b[1m$1$2\x1b[0m").to_string();
+
+        // Inline code: `code`
+        let code_re = regex::Regex::new(r"`([^`]+)`").unwrap();
+        result = code_re.replace_all(&result, "\x1b[38;5;222m$1\x1b[0m").to_string();
+
+        // Headers: ## Header
+        if result.starts_with("# ") {
+            result = format!("\x1b[1;38;5;75m{}\x1b[0m", &result[2..]);
+        } else if result.starts_with("## ") {
+            result = format!("\x1b[1;38;5;75m{}\x1b[0m", &result[3..]);
+        } else if result.starts_with("### ") {
+            result = format!("\x1b[1;38;5;245m{}\x1b[0m", &result[4..]);
+        }
+
+        // Bullet points
+        if result.starts_with("- ") || result.starts_with("* ") {
+            result = format!("\x1b[38;5;75m•\x1b[0m {}", &result[2..]);
+        }
+
+        // Numbered lists (keep as-is but add color)
+        if result.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false) && result.contains(". ") {
+            if let Some(pos) = result.find(". ") {
+                let num = &result[..pos + 1];
+                let text = &result[pos + 2..];
+                result = format!("\x1b[38;5;75m{}\x1b[0m {}", num, text);
+            }
+        }
+
+        result
     }
 
     pub fn print_newline(&self) {

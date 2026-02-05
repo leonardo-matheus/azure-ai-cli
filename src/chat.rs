@@ -99,6 +99,7 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
         }
 
         let mut response_started = false;
+        ui.reset_code_state();
         let result = client
             .chat(&messages, |token| {
                 if !response_started {
@@ -162,6 +163,7 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
                         ui.print_thinking(iterations);
 
                         response_started = false;
+                        ui.reset_code_state();
 
                         let follow_up = client
                             .chat(&messages, |token| {
@@ -360,6 +362,7 @@ fn handle_command(
                     if let Some(model) = config.get_active_model() {
                         client.update_config(model.clone());
                         ui.set_context_max(client.get_max_context());
+                        ui.set_model_info(&model.name, &model.model_type.to_string(), &ui.current_path.clone());
                         let _ = save_config(config);
                         ui.print_model_switch(&model.name, &model.model_type.to_string());
 
@@ -377,6 +380,7 @@ fn handle_command(
                         if let Some(model) = config.get_active_model() {
                             client.update_config(model.clone());
                             ui.set_context_max(client.get_max_context());
+                            ui.set_model_info(&model.name, &model.model_type.to_string(), &ui.current_path.clone());
                             let _ = save_config(config);
                             ui.print_model_switch(&model.name, &model.model_type.to_string());
                         }
