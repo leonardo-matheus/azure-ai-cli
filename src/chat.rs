@@ -29,9 +29,9 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|_| ".".to_string());
 
+    ui.set_model_info(&active_model.name, &active_model.model_type.to_string(), &current_dir);
     ui.print_banner(&active_model.name, &active_model.model_type.to_string(), &current_dir);
     ui.print_welcome_line();
-    ui.print_input_hint();
 
     let mut messages: Vec<Message> = Vec::new();
     let mut total_tokens: usize = 0;
@@ -284,9 +284,9 @@ fn handle_command(
                     .map(|p| p.to_string_lossy().to_string())
                     .unwrap_or_else(|_| ".".to_string());
                 ui.clear_screen();
+                ui.set_model_info(&model.name, &model.model_type.to_string(), &current_dir);
                 ui.print_banner(&model.name, &model.model_type.to_string(), &current_dir);
                 ui.print_welcome_line();
-                ui.print_input_hint();
             }
             ui.print_success(ui.strings.cleared());
             CommandResult::Processed
@@ -343,6 +343,7 @@ fn handle_command(
                             if let Some(model) = config.get_active_model() {
                                 client.update_config(model.clone());
                                 ui.set_context_max(client.get_max_context());
+                                ui.set_model_info(&model.name, &model.model_type.to_string(), &ui.current_path.clone());
                                 let _ = save_config(config);
                                 ui.print_model_switch(&model.name, &model.model_type.to_string());
                                 let model_names: Vec<String> = config.models.keys().cloned().collect();

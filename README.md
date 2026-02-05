@@ -25,21 +25,19 @@
 ---
 
 ```
-╭─ AICLI ─────────────────────────────────────────────────────────╮
-│                                                                  │
-│                         Welcome back!                            │
-│                                                                  │
-│                            /\_/\                                 │
-│                           ( o.o )                                │
-│                            > ^ <                                 │
-│                                                                  │
-│                         gpt-4-turbo                              │
-│                             GPT                                  │
-│                        0K/128K tokens                            │
-│                    ~/projects/my-app                             │
-│                                                                  │
-│                     By Leonardo M. Silva                         │
-╰──────────────────────────────────────────────────────────────────╯
+▛▀▀▀▀▀▀▀▀▜  AICLI v1.0.0
+▌ /\_/\  ▐  ● gpt-4-turbo (GPT)
+▙▄▄▄▄▄▄▄▄▟  ~/projects/my-app
+
+ 🎯 Switch models anytime! Use /model to select your preferred LLM.
+    By Leonardo M. Silva · Type /help for commands
+
+❯ explain this code @main.rs
+
+● Assistant
+  This file contains the main entry point for the application...
+
+ [Auto] │ Context (2k / 1%) │ ● gpt-4-turbo │ ~/projects/my-app
 ```
 
 ## ✨ Features

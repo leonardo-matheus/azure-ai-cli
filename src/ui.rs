@@ -13,9 +13,12 @@ const VERSION: &str = "1.0.0";
 
 pub struct UI {
     pub strings: Strings,
-    term_width: usize,
+    pub term_width: usize,
     pub context_used: usize,
     pub context_max: usize,
+    pub current_model: String,
+    pub current_model_type: String,
+    pub current_path: String,
 }
 
 impl UI {
@@ -25,7 +28,10 @@ impl UI {
             strings: Strings::new(lang),
             term_width: term_width.max(70),
             context_used: 0,
-            context_max: 128000, // Default 128k context
+            context_max: 128000,
+            current_model: String::new(),
+            current_model_type: String::new(),
+            current_path: String::new(),
         }
     }
 
@@ -46,124 +52,31 @@ impl UI {
         self.strings = Strings::new(lang);
     }
 
+    pub fn set_model_info(&mut self, model: &str, model_type: &str, path: &str) {
+        self.current_model = model.to_string();
+        self.current_model_type = model_type.to_string();
+        self.current_path = path.to_string();
+    }
+
     fn hyperlink(text: &str, url: &str) -> String {
         format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", url, text)
     }
 
     pub fn print_banner(&self, model: &str, model_type: &str, current_dir: &str) {
-        // Responsive: use full terminal width, min 50
-        let w = self.term_width.max(50);
-        let inner = w - 2;
-
-        // Calculate visible length (excluding ANSI codes)
-        let visible_len = |s: &str| -> usize {
-            let mut len = 0;
-            let mut in_escape = false;
-            for c in s.chars() {
-                if c == '\x1b' {
-                    in_escape = true;
-                } else if in_escape {
-                    if c == 'm' {
-                        in_escape = false;
-                    }
-                } else {
-                    len += 1;
-                }
-            }
-            len
-        };
-
-        // Helper for centering text with ANSI codes
-        let center = |text: &str, width: usize| -> String {
-            let text_len = visible_len(text);
-            if text_len >= width {
-                return text.to_string();
-            }
-            let padding = width - text_len;
-            let left = padding / 2;
-            let right = padding - left;
-            format!("{}{}{}", " ".repeat(left), text, " ".repeat(right))
-        };
-
-        // Truncate path for display
-        let max_path_len = inner.saturating_sub(4);
-        let display_dir = Self::truncate_path(current_dir, max_path_len);
-
-        // Context info
-        let ctx_percent = self.get_context_percent();
-        let ctx_color = if ctx_percent > 80 { "203" } else if ctx_percent > 50 { "220" } else { "82" };
-        let ctx_text = format!("{}K/{}K tokens", self.context_used / 1000, self.context_max / 1000);
-
-        // Author with hyperlink
-        let author_link = Self::hyperlink("Leonardo M. Silva", GITHUB_URL);
-        let author_plain = "By Leonardo M. Silva";
-
-        let line = "─".repeat(inner);
-        let empty = " ".repeat(inner);
-
-        // Title line with "AICLI"
-        let title = "─ AICLI ";
-        let title_len = title.len();
-        let remaining = inner.saturating_sub(title_len);
-        let title_line = format!("{}{}", title, "─".repeat(remaining));
+        let display_path = Self::truncate_path(current_dir, 40);
 
         println!();
-        println!("\x1b[38;5;75m╭{}╮\x1b[0m", title_line);
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
-
-        // Welcome message
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[1;37mWelcome back!\x1b[0m", inner));
-
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
-
-        // Cat ASCII art - centered
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[38;5;220m/\\_/\\\x1b[0m", inner));
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[38;5;220m( o.o )\x1b[0m", inner));
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[38;5;220m> ^ <\x1b[0m", inner));
-
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
-
-        // Model name - centered and bold
-        let model_display = format!("\x1b[1;38;5;220m{}\x1b[0m", model);
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&model_display, inner));
-
-        // Model type - centered
-        let type_display = format!("\x1b[38;5;245m{}\x1b[0m", model_type);
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&type_display, inner));
-
-        // Context - centered with color
-        let ctx_display = format!("\x1b[38;5;{}m{}\x1b[0m", ctx_color, ctx_text);
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&ctx_display, inner));
-
-        // Path - centered
-        let path_display = format!("\x1b[38;5;245m{}\x1b[0m", display_dir);
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&path_display, inner));
-
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
-
-        // Author line - centered with hyperlink
-        // We need to calculate padding using plain text length but print with hyperlink
-        let author_visible_len = author_plain.len();
-        let author_padding = inner.saturating_sub(author_visible_len);
-        let author_left = author_padding / 2;
-        let author_right = author_padding - author_left;
-        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;245m{}\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            " ".repeat(author_left), format!("By {}", author_link), " ".repeat(author_right));
-
-        println!("\x1b[38;5;75m╰{}╯\x1b[0m", line);
+        // Modern compact header like LOCAL-CLI
+        println!("\x1b[38;5;75m▛▀▀▀▀▀▀▀▀▜\x1b[0m  \x1b[1;37mAICLI\x1b[0m \x1b[38;5;245mv{}\x1b[0m", VERSION);
+        println!("\x1b[38;5;75m▌\x1b[0m \x1b[38;5;220m/\\_/\\\x1b[0m  \x1b[38;5;75m▐\x1b[0m  \x1b[38;5;82m●\x1b[0m \x1b[1;38;5;220m{}\x1b[0m \x1b[38;5;245m({})\x1b[0m", model, model_type);
+        println!("\x1b[38;5;75m▙▄▄▄▄▄▄▄▄▟\x1b[0m  \x1b[38;5;245m{}\x1b[0m", display_path);
         println!();
     }
 
     pub fn print_welcome_line(&self) {
-        println!("  \x1b[38;5;245mv{}\x1b[0m", VERSION);
+        let author_link = Self::hyperlink("Leonardo M. Silva", GITHUB_URL);
+        println!(" \x1b[38;5;220m🎯\x1b[0m Switch models anytime! Use \x1b[38;5;75m/model\x1b[0m to select your preferred LLM.");
+        println!("    \x1b[38;5;245mBy {} · Type \x1b[38;5;75m/help\x1b[0m\x1b[38;5;245m for commands\x1b[0m", author_link);
         println!();
     }
 
@@ -203,16 +116,32 @@ impl UI {
     }
 
     pub fn print_input_hint(&self) {
-        self.print_separator();
-        println!("\x1b[38;5;39m❯\x1b[0m Try \x1b[38;5;245m\"explain this code\"\x1b[0m or \x1b[38;5;245m\"@file what does this do?\"\x1b[0m");
-        self.print_separator();
-        println!("  \x1b[38;5;245m? for help · /model to switch · /exit to quit\x1b[0m");
+        // No need for extra hints - the status bar at bottom will show info
+    }
+
+    pub fn print_status_bar(&self) {
+        let w = self.term_width;
+        let ctx_k = self.context_used / 1000;
+        let ctx_percent = self.get_context_percent();
+        let ctx_color = if ctx_percent > 80 { "203" } else if ctx_percent > 50 { "220" } else { "82" };
+
+        let model_display = if self.current_model.len() > 20 {
+            format!("{}...", &self.current_model[..17])
+        } else {
+            self.current_model.clone()
+        };
+
+        let path_display = Self::truncate_path(&self.current_path, 20);
+
+        // Status line
         println!();
+        println!(" \x1b[38;5;245m[Auto]\x1b[0m │ \x1b[38;5;{}mContext ({}k / {}%)\x1b[0m │ \x1b[38;5;82m●\x1b[0m \x1b[38;5;220m{}\x1b[0m │ \x1b[38;5;245m{}\x1b[0m",
+            ctx_color, ctx_k, ctx_percent, model_display, path_display);
     }
 
     pub fn print_model_switch(&self, model: &str, model_type: &str) {
         println!();
-        println!("  \x1b[38;5;82m✓\x1b[0m Switched to \x1b[38;5;220m{}\x1b[0m \x1b[38;5;245m({})\x1b[0m", model, model_type);
+        println!("\x1b[38;5;82m●\x1b[0m Switched to \x1b[1;38;5;220m{}\x1b[0m \x1b[38;5;245m({})\x1b[0m", model, model_type);
         println!();
     }
 
@@ -222,17 +151,13 @@ impl UI {
         println!();
     }
 
-    pub fn print_thinking(&self, frame: usize) {
-        let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-        let s = spinner[frame % spinner.len()];
-        print!("\r\x1b[K  \x1b[38;5;220m{}\x1b[0m \x1b[38;5;245m{}\x1b[0m", s, self.strings.thinking());
+    pub fn print_thinking(&self, _frame: usize) {
+        print!("\r\x1b[K\x1b[38;5;75m◐\x1b[0m \x1b[38;5;245m{}\x1b[0m", self.strings.thinking());
         io::stdout().flush().unwrap();
     }
 
-    pub fn print_working(&self, frame: usize, task: &str) {
-        let spinner = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
-        let s = spinner[frame % spinner.len()];
-        print!("\r\x1b[K  \x1b[38;5;220m{}\x1b[0m \x1b[38;5;245m{}\x1b[0m", s, task);
+    pub fn print_working(&self, _frame: usize, task: &str) {
+        print!("\r\x1b[K\x1b[38;5;220m◐\x1b[0m \x1b[38;5;245m{}\x1b[0m", task);
         io::stdout().flush().unwrap();
     }
 
@@ -243,11 +168,15 @@ impl UI {
 
     pub fn print_assistant_prefix(&self) {
         println!();
+        println!("\x1b[38;5;75m●\x1b[0m \x1b[1;37mAssistant\x1b[0m");
+        print!("  ");
         io::stdout().flush().unwrap();
     }
 
     pub fn print_token(&self, token: &str) {
-        print!("{}", token);
+        // Handle newlines to maintain indentation
+        let indented = token.replace("\n", "\n  ");
+        print!("{}", indented);
         io::stdout().flush().unwrap();
     }
 
@@ -256,15 +185,12 @@ impl UI {
     }
 
     pub fn print_context_status(&self) {
-        let ctx_percent = self.get_context_percent();
-        let ctx_color = if ctx_percent > 80 { "203" } else if ctx_percent > 50 { "220" } else { "82" };
-        println!("  \x1b[38;5;240m[\x1b[38;5;{}m{}K/{}K tokens\x1b[38;5;240m]\x1b[0m",
-            ctx_color, self.context_used / 1000, self.context_max / 1000);
+        self.print_status_bar();
     }
 
     pub fn print_tool_call(&self, tool_name: &str, input: &str) {
         println!();
-        println!("  \x1b[38;5;220m⚡ {}\x1b[0m", tool_name);
+        println!("  \x1b[38;5;220m⚡\x1b[0m \x1b[38;5;75m{}\x1b[0m", tool_name);
 
         // Parse and display input nicely
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(input) {
@@ -272,14 +198,14 @@ impl UI {
                 for (key, value) in obj.iter().take(3) {
                     let val_str = match value {
                         serde_json::Value::String(s) => {
-                            if s.len() > 50 { format!("{}...", &s[..47]) } else { s.clone() }
+                            if s.len() > 60 { format!("{}...", &s[..57]) } else { s.clone() }
                         },
                         _ => {
                             let s = value.to_string();
-                            if s.len() > 50 { format!("{}...", &s[..47]) } else { s }
+                            if s.len() > 60 { format!("{}...", &s[..57]) } else { s }
                         }
                     };
-                    println!("  \x1b[38;5;240m│\x1b[0m \x1b[38;5;245m{}:\x1b[0m {}", key, val_str);
+                    println!("     \x1b[38;5;245m{}:\x1b[0m {}", key, val_str);
                 }
             }
         }
@@ -291,33 +217,32 @@ impl UI {
 
         // Show condensed output
         let lines: Vec<&str> = output.lines().collect();
-        let max_lines = 4;
+        let max_lines = 5;
 
         for line in lines.iter().take(max_lines) {
-            let truncated = if line.len() > 70 {
-                format!("{}...", &line[..67])
+            let truncated = if line.len() > 80 {
+                format!("{}...", &line[..77])
             } else {
                 line.to_string()
             };
-            println!("  \x1b[38;5;240m│\x1b[0m {}", truncated);
+            println!("     \x1b[38;5;240m{}\x1b[0m", truncated);
         }
 
         if lines.len() > max_lines {
-            println!("  \x1b[38;5;240m╰\x1b[0m \x1b[38;5;245m+{} more lines\x1b[0m", lines.len() - max_lines);
+            println!("     \x1b[38;5;245m... +{} more lines\x1b[0m", lines.len() - max_lines);
         }
-        println!();
     }
 
     pub fn print_error(&self, message: &str) {
-        println!("  \x1b[38;5;203m✗\x1b[0m {}", message);
+        println!("\x1b[38;5;203m✗\x1b[0m {}", message);
     }
 
     pub fn print_info(&self, message: &str) {
-        println!("  \x1b[38;5;39mℹ\x1b[0m {}", message);
+        println!("\x1b[38;5;75mℹ\x1b[0m {}", message);
     }
 
     pub fn print_success(&self, message: &str) {
-        println!("  \x1b[38;5;82m✓\x1b[0m {}", message);
+        println!("\x1b[38;5;82m✓\x1b[0m {}", message);
     }
 
     pub fn print_file_context(&self, files: &[String]) {
