@@ -7,6 +7,10 @@ use crossterm::{
 use std::io::{self, Write};
 use std::path::Path;
 use crate::i18n::{Language, Strings};
+use syntect::easy::HighlightLines;
+use syntect::highlighting::{ThemeSet, Style, Color};
+use syntect::parsing::SyntaxSet;
+use syntect::util::LinesWithEndings;
 
 const GITHUB_URL: &str = "https://github.com/leonardo-matheus";
 const VERSION: &str = "1.0.0";
@@ -21,6 +25,9 @@ pub struct UI {
     pub current_path: String,
     in_code_block: std::cell::Cell<bool>,
     code_buffer: std::cell::RefCell<String>,
+    code_lang: std::cell::RefCell<String>,
+    syntax_set: SyntaxSet,
+    theme_set: ThemeSet,
 }
 
 impl UI {
@@ -36,6 +43,9 @@ impl UI {
             current_path: String::new(),
             in_code_block: std::cell::Cell::new(false),
             code_buffer: std::cell::RefCell::new(String::new()),
+            code_lang: std::cell::RefCell::new(String::new()),
+            syntax_set: SyntaxSet::load_defaults_newlines(),
+            theme_set: ThemeSet::load_defaults(),
         }
     }
 
@@ -182,50 +192,76 @@ impl UI {
         buffer.push_str(token);
 
         // Process the buffer looking for code block markers
-        while let Some(pos) = buffer.find("```") {
-            // Print everything before the marker
-            let before = &buffer[..pos];
-            if !before.is_empty() {
-                let formatted = if self.in_code_block.get() {
-                    format!("\x1b[38;5;222m{}\x1b[0m", before.replace("\n", "\n  "))
+        loop {
+            if let Some(pos) = buffer.find("```") {
+                // Print everything before the marker
+                let before = &buffer[..pos];
+                if !before.is_empty() {
+                    if self.in_code_block.get() {
+                        // Inside code block - we'll highlight when closing
+                    } else {
+                        // Regular text
+                        print!("{}", before.replace("\n", "\n  "));
+                    }
+                }
+
+                // Toggle code block state
+                if self.in_code_block.get() {
+                    // End of code block - highlight accumulated code
+                    let code_content = before.to_string();
+                    let lang = self.code_lang.borrow().clone();
+
+                    // Print highlighted code
+                    let highlighted = self.highlight_code(&code_content, &lang);
+                    for (i, line) in highlighted.lines().enumerate() {
+                        if i > 0 {
+                            print!("\n");
+                        }
+                        print!("  \x1b[38;5;240m│\x1b[0m {}", line);
+                    }
+
+                    // Close the code block
+                    let w = self.term_width.min(80);
+                    print!("\n  \x1b[38;5;240m└{}\x1b[0m", "─".repeat(w - 4));
+                    self.in_code_block.set(false);
+                    self.code_lang.borrow_mut().clear();
                 } else {
-                    before.replace("\n", "\n  ")
-                };
-                print!("{}", formatted);
-            }
+                    // Start of code block - find the language tag
+                    let after_marker = &buffer[pos + 3..];
+                    if let Some(newline_pos) = after_marker.find('\n') {
+                        let lang = after_marker[..newline_pos].trim().to_string();
+                        *self.code_lang.borrow_mut() = lang.clone();
 
-            // Toggle code block state
-            if self.in_code_block.get() {
-                // End of code block
-                print!("\x1b[38;5;240m───┘\x1b[0m");
-                self.in_code_block.set(false);
+                        let lang_display = if lang.is_empty() { "code".to_string() } else { lang };
+                        let w = self.term_width.min(80);
+                        print!("\n  \x1b[38;5;240m┌─ {} {}\x1b[0m\n",
+                            lang_display,
+                            "─".repeat(w.saturating_sub(8 + lang_display.len())));
+
+                        self.in_code_block.set(true);
+                        *buffer = after_marker[newline_pos + 1..].to_string();
+                        continue;
+                    } else {
+                        // No newline yet, wait for more tokens
+                        break;
+                    }
+                }
+
+                *buffer = buffer[pos + 3..].to_string();
+                // Remove any trailing newline after closing ```
+                if buffer.starts_with('\n') {
+                    *buffer = buffer[1..].to_string();
+                }
             } else {
-                // Start of code block - find the language tag
-                let after_marker = &buffer[pos + 3..];
-                let lang_end = after_marker.find('\n').unwrap_or(0);
-                let lang = &after_marker[..lang_end];
-                let lang_display = if lang.is_empty() { "" } else { lang };
-                print!("\n  \x1b[38;5;240m┌─ {}\x1b[0m\n  ", lang_display);
-                self.in_code_block.set(true);
-                // Remove the language tag from buffer
-                *buffer = buffer[pos + 3 + lang_end..].to_string();
-                continue;
+                break;
             }
-
-            *buffer = buffer[pos + 3..].to_string();
         }
 
-        // Print remaining buffer content
-        if !buffer.is_empty() && !buffer.contains("``") {
+        // Print remaining buffer content if not in code block and no pending ```
+        if !self.in_code_block.get() && !buffer.is_empty() && !buffer.contains("``") {
             let content = buffer.clone();
             buffer.clear();
-
-            let formatted = if self.in_code_block.get() {
-                format!("\x1b[38;5;222m{}\x1b[0m", content.replace("\n", "\n  "))
-            } else {
-                content.replace("\n", "\n  ")
-            };
-            print!("{}", formatted);
+            print!("{}", content.replace("\n", "\n  "));
         }
 
         io::stdout().flush().unwrap();
@@ -234,6 +270,95 @@ impl UI {
     pub fn reset_code_state(&self) {
         self.in_code_block.set(false);
         self.code_buffer.borrow_mut().clear();
+        self.code_lang.borrow_mut().clear();
+    }
+
+    /// Highlight code with Dracula-like theme colors
+    fn highlight_code(&self, code: &str, lang: &str) -> String {
+        // Map language aliases
+        let syntax_name = match lang.to_lowercase().as_str() {
+            "js" | "javascript" => "JavaScript",
+            "ts" | "typescript" => "TypeScript",
+            "rs" | "rust" => "Rust",
+            "py" | "python" => "Python",
+            "java" => "Java",
+            "html" => "HTML",
+            "css" => "CSS",
+            "json" => "JSON",
+            "xml" => "XML",
+            "sql" => "SQL",
+            "sh" | "bash" | "shell" => "Bourne Again Shell (bash)",
+            "yml" | "yaml" => "YAML",
+            "toml" => "TOML",
+            "md" | "markdown" => "Markdown",
+            "c" => "C",
+            "cpp" | "c++" => "C++",
+            "go" => "Go",
+            "rb" | "ruby" => "Ruby",
+            "php" => "PHP",
+            "swift" => "Swift",
+            "kt" | "kotlin" => "Kotlin",
+            _ => lang,
+        };
+
+        let syntax = self.syntax_set
+            .find_syntax_by_name(syntax_name)
+            .or_else(|| self.syntax_set.find_syntax_by_extension(lang))
+            .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
+
+        // Use Monokai (closest to Dracula in defaults)
+        let theme = &self.theme_set.themes["base16-monokai.dark"];
+        let mut highlighter = HighlightLines::new(syntax, theme);
+
+        let mut result = String::new();
+        for line in LinesWithEndings::from(code) {
+            match highlighter.highlight_line(line, &self.syntax_set) {
+                Ok(ranges) => {
+                    for (style, text) in ranges {
+                        let colored = Self::style_to_ansi(&style, text);
+                        result.push_str(&colored);
+                    }
+                }
+                Err(_) => {
+                    // Fallback: just use default code color
+                    result.push_str(&format!("\x1b[38;5;222m{}\x1b[0m", line));
+                }
+            }
+        }
+        result
+    }
+
+    /// Convert syntect Style to ANSI escape codes (Dracula-inspired)
+    fn style_to_ansi(style: &Style, text: &str) -> String {
+        let fg = style.foreground;
+
+        // Map to closest Dracula colors
+        let color_code = match (fg.r, fg.g, fg.b) {
+            // Pink/Magenta (keywords) - Dracula pink #ff79c6
+            (r, g, b) if r > 200 && g < 150 && b > 150 => "205",
+            // Purple (constants) - Dracula purple #bd93f9
+            (r, g, b) if r > 150 && g < 180 && b > 200 => "141",
+            // Green (strings) - Dracula green #50fa7b
+            (r, g, b) if g > 200 && r < 150 => "84",
+            // Yellow (classes/functions) - Dracula yellow #f1fa8c
+            (r, g, b) if r > 200 && g > 200 && b < 150 => "228",
+            // Cyan (support) - Dracula cyan #8be9fd
+            (r, g, b) if g > 200 && b > 200 && r < 150 => "117",
+            // Orange (numbers) - Dracula orange #ffb86c
+            (r, g, b) if r > 200 && g > 150 && g < 200 && b < 150 => "215",
+            // Red (errors/tags) - Dracula red #ff5555
+            (r, _, _) if r > 220 => "203",
+            // White/light gray (default text) - Dracula foreground #f8f8f2
+            (r, g, b) if r > 200 && g > 200 && b > 200 => "255",
+            // Gray (comments) - Dracula comment #6272a4
+            (r, g, b) if r < 150 && g < 150 && b < 180 => "103",
+            // Default: use actual RGB if terminal supports it
+            _ => {
+                return format!("\x1b[38;2;{};{};{}m{}\x1b[0m", fg.r, fg.g, fg.b, text);
+            }
+        };
+
+        format!("\x1b[38;5;{}m{}\x1b[0m", color_code, text)
     }
 
     /// Format complete response with syntax highlighting for code blocks
