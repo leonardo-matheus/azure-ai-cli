@@ -394,8 +394,12 @@ impl UI {
             .or_else(|| self.syntax_set.find_syntax_by_extension(lang))
             .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
 
-        // Use Monokai (closest to Dracula in defaults)
-        let theme = &self.theme_set.themes["base16-monokai.dark"];
+        // Use available theme (try monokai, fallback to any available)
+        let theme = self.theme_set.themes
+            .get("base16-monokai.dark")
+            .or_else(|| self.theme_set.themes.get("base16-ocean.dark"))
+            .or_else(|| self.theme_set.themes.values().next())
+            .expect("No themes available");
         let mut highlighter = HighlightLines::new(syntax, theme);
 
         let mut result = String::new();
