@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Documentation - AICLI</title>
+    <meta name="description" content="Complete documentation for AICLI - Azure AI Command Line Interface">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+            --accent-blue: #58a6ff;
+            --accent-purple: #bd93f9;
+            --accent-green: #50fa7b;
+            --accent-yellow: #f1fa8c;
+            --accent-cyan: #8be9fd;
+            --accent-pink: #ff79c6;
+            --accent-orange: #ffb86c;
+            --border-color: #30363d;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        code, pre, .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        a { color: var(--accent-blue); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Layout */
+        .docs-layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 2rem 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            padding: 0 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-logo a {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .sidebar-logo span { color: var(--accent-cyan); }
+
+        .sidebar-nav { padding: 0 1rem; }
+
+        .sidebar-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .sidebar-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            padding: 0 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .sidebar-section ul {
+            list-style: none;
+        }
+
+        .sidebar-section a {
+            display: block;
+            padding: 0.5rem;
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .sidebar-section a:hover,
+        .sidebar-section a.active {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        /* Main Content */
+        .docs-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 3rem 4rem;
+            max-width: 900px;
+        }
+
+        .docs-content h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .docs-content h2 {
+            font-size: 1.75rem;
+            margin-top: 3rem;
+            margin-bottom: 1rem;
+            color: var(--accent-cyan);
+        }
+
+        .docs-content h3 {
+            font-size: 1.25rem;
+            margin-top: 2rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .docs-content p {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .docs-content ul, .docs-content ol {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .docs-content li {
+            margin-bottom: 0.5rem;
+        }
+
+        .docs-content code {
+            background: var(--bg-tertiary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            color: var(--accent-yellow);
+        }
+
+        .docs-content pre {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+        }
+
+        .docs-content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+
+        .note {
+            background: rgba(88, 166, 255, 0.1);
+            border-left: 4px solid var(--accent-blue);
+            padding: 1rem 1.25rem;
+            margin: 1.5rem 0;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .note-title {
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .warning {
+            background: rgba(255, 184, 108, 0.1);
+            border-left: 4px solid var(--accent-orange);
+        }
+
+        .warning .note-title {
+            color: var(--accent-orange);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .docs-content { margin-left: 0; padding: 2rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="docs-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <a href="index.html"><span>❯</span> AICLI Docs</a>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Getting Started</div>
+                    <ul>
+                        <li><a href="#introduction" class="active">Introduction</a></li>
+                        <li><a href="#installation">Installation</a></li>
+                        <li><a href="#quick-start">Quick Start</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Configuration</div>
+                    <ul>
+                        <li><a href="#config-file">Config File</a></li>
+                        <li><a href="#models">Adding Models</a></li>
+                        <li><a href="#azure-setup">Azure AI Setup</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Usage</div>
+                    <ul>
+                        <li><a href="#commands">Commands</a></li>
+                        <li><a href="#file-context">File Context</a></li>
+                        <li><a href="#tools">Tool Execution</a></li>
+                    </ul>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Reference</div>
+                    <ul>
+                        <li><a href="#model-types">Model Types</a></li>
+                        <li><a href="#keyboard">Keyboard Shortcuts</a></li>
+                        <li><a href="#troubleshooting">Troubleshooting</a></li>
+                    </ul>
+                </div>
+            </nav>
+        </aside>
+
+        <main class="docs-content">
+            <h1 id="introduction">AICLI Documentation</h1>
+            <p>AICLI is a powerful command-line interface for interacting with Azure AI Foundry models. It supports Claude, GPT, DeepSeek, and other OpenAI-compatible models.</p>
+
+            <h2 id="installation">Installation</h2>
+
+            <h3>Download Binary</h3>
+            <p>Download the latest release from GitHub:</p>
+            <pre><code># Windows
+curl -LO https://github.com/leonardo-matheus/azure-ai-cli/releases/latest/download/aicli-windows.zip
+
+# Linux
+curl -LO https://github.com/leonardo-matheus/azure-ai-cli/releases/latest/download/aicli-linux.tar.gz
+
+# macOS
+curl -LO https://github.com/leonardo-matheus/azure-ai-cli/releases/latest/download/aicli-macos.tar.gz</code></pre>
+
+            <h3>Install Globally</h3>
+            <p>Run AICLI and use the built-in installer:</p>
+            <pre><code>./aicli
+❯ /install</code></pre>
+            <p>This will copy the binary to your user directory and add it to PATH. Restart your terminal afterwards.</p>
+
+            <h3>Build from Source</h3>
+            <pre><code>git clone https://github.com/leonardo-matheus/azure-ai-cli.git
+cd azure-ai-cli
+cargo build --release
+./target/release/aicli</code></pre>
+
+            <h2 id="quick-start">Quick Start</h2>
+            <p>On first run, AICLI will guide you through configuration:</p>
+            <pre><code>$ aicli
+
+  No models configured. Let's add your first model!
+
+  Model name: Claude Opus
+  API Endpoint: https://your-resource.openai.azure.com
+  API Key: ********
+  Deployment name: claude-opus
+  Model type (claude/gpt/deepseek/other): claude
+
+  ✓ Model added successfully!</code></pre>
+
+            <h2 id="config-file">Configuration File</h2>
+            <p>Configuration is stored in <code>~/.aicli/config.toml</code>:</p>
+            <pre><code>active_model = "claude-opus"
+language = "en"
+
+[models.claude-opus]
+name = "Claude Opus 4.5"
+api_key = "your-api-key-here"
+endpoint = "https://your-resource.services.ai.azure.com"
+deployment = "claude-opus-4-5"
+model_type = "claude"
+max_tokens = 8192
+temperature = 0.7
+
+[models.gpt-4]
+name = "GPT-4 Turbo"
+api_key = "your-api-key"
+endpoint = "https://your-resource.openai.azure.com"
+deployment = "gpt-4-turbo"
+model_type = "gpt"
+max_tokens = 4096
+temperature = 0.7</code></pre>
+
+            <div class="note warning">
+                <div class="note-title">Security Note</div>
+                <p>Never commit your config.toml with real API keys to version control.</p>
+            </div>
+
+            <h2 id="models">Adding Models</h2>
+            <p>You can add models interactively or by editing the config file:</p>
+            <pre><code>❯ /model
+
+  Models
+  ↑↓ navigate · Enter select · Esc cancel
+
+  ● Claude Opus 4.5 (Claude)
+  ○ GPT-4 Turbo (GPT)
+  + Add model</code></pre>
+
+            <h2 id="azure-setup">Azure AI Setup</h2>
+            <p>To use AICLI with Azure AI Foundry:</p>
+            <ol>
+                <li>Create an Azure AI resource in the Azure Portal</li>
+                <li>Deploy your desired model (Claude, GPT, etc.)</li>
+                <li>Copy the endpoint URL and API key</li>
+                <li>Add the model in AICLI with <code>/model</code> or edit config.toml</li>
+            </ol>
+
+            <h2 id="commands">Commands</h2>
+            <table>
+                <thead>
+                    <tr><th>Command</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>/help</code></td><td>Show available commands</td></tr>
+                    <tr><td><code>/model</code></td><td>Interactive model selection</td></tr>
+                    <tr><td><code>/model &lt;name&gt;</code></td><td>Switch to specific model</td></tr>
+                    <tr><td><code>/clear</code></td><td>Clear conversation history</td></tr>
+                    <tr><td><code>/config</code></td><td>Show current configuration</td></tr>
+                    <tr><td><code>/lang en|pt</code></td><td>Change language</td></tr>
+                    <tr><td><code>/history</code></td><td>Show conversation history</td></tr>
+                    <tr><td><code>/install</code></td><td>Install AICLI globally</td></tr>
+                    <tr><td><code>/uninstall</code></td><td>Uninstall AICLI</td></tr>
+                    <tr><td><code>/exit</code></td><td>Exit AICLI</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="file-context">File Context</h2>
+            <p>Include files in your prompts using <code>@</code> syntax:</p>
+            <pre><code>❯ Explain this code @src/main.rs
+
+❯ Refactor @utils/helpers.ts to use async/await
+
+❯ Review @package.json and suggest improvements</code></pre>
+            <p>Press Tab after <code>@</code> for file autocompletion.</p>
+
+            <h2 id="tools">Tool Execution</h2>
+            <p>AICLI can execute tools on your behalf:</p>
+            <ul>
+                <li><strong>execute_command</strong> - Run shell commands</li>
+                <li><strong>read_file</strong> - Read file contents</li>
+                <li><strong>write_file</strong> - Create or overwrite files</li>
+                <li><strong>edit_file</strong> - Modify existing files</li>
+                <li><strong>list_directory</strong> - List directory contents</li>
+                <li><strong>search_files</strong> - Find files by pattern</li>
+                <li><strong>search_content</strong> - Search text in files</li>
+            </ul>
+
+            <div class="note">
+                <div class="note-title">Tip</div>
+                <p>The AI will automatically use these tools when needed. Just describe what you want to accomplish.</p>
+            </div>
+
+            <h2 id="model-types">Model Types</h2>
+            <table>
+                <thead>
+                    <tr><th>Type</th><th>API Format</th><th>Models</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>claude</code></td><td>Anthropic Messages API</td><td>Claude 3 Opus, Sonnet, Haiku</td></tr>
+                    <tr><td><code>gpt</code></td><td>OpenAI Chat Completions</td><td>GPT-4, GPT-4 Turbo, GPT-3.5</td></tr>
+                    <tr><td><code>deepseek</code></td><td>OpenAI Chat Completions</td><td>DeepSeek Coder, Chat</td></tr>
+                    <tr><td><code>other</code></td><td>OpenAI Chat Completions</td><td>Any compatible model</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="keyboard">Keyboard Shortcuts</h2>
+            <table>
+                <thead>
+                    <tr><th>Key</th><th>Action</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>Tab</code></td><td>Autocomplete commands and files</td></tr>
+                    <tr><td><code>↑/↓</code></td><td>Navigate history / model selection</td></tr>
+                    <tr><td><code>Enter</code></td><td>Send message / Select option</td></tr>
+                    <tr><td><code>Ctrl+C</code></td><td>Cancel current operation</td></tr>
+                    <tr><td><code>Ctrl+D</code></td><td>Exit AICLI</td></tr>
+                    <tr><td><code>Esc</code></td><td>Cancel selection menu</td></tr>
+                </tbody>
+            </table>
+
+            <h2 id="troubleshooting">Troubleshooting</h2>
+
+            <h3>API Connection Errors</h3>
+            <p>Verify your endpoint URL and API key in <code>/config</code>. Ensure your Azure resource is deployed and accessible.</p>
+
+            <h3>Model Not Found</h3>
+            <p>Check that the deployment name matches exactly what's configured in Azure AI Studio.</p>
+
+            <h3>Prompt Color Issues</h3>
+            <p>If colors don't display correctly, ensure your terminal supports ANSI escape codes. Windows Terminal and most modern terminals work well.</p>
+
+            <h3>Installation Issues</h3>
+            <p>If <code>/install</code> fails, you can manually copy the binary to a directory in your PATH:</p>
+            <pre><code># Windows
+copy aicli.exe %USERPROFILE%\.aicli\bin\
+
+# Linux/Mac
+cp aicli ~/.local/bin/</code></pre>
+        </main>
+    </div>
+</body>
+</html>

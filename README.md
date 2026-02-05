@@ -1,184 +1,136 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Rust-000000?style=for-the-badge&logo=rust&logoColor=white" alt="Rust">
   <img src="https://img.shields.io/badge/Azure-0078D4?style=for-the-badge&logo=microsoft-azure&logoColor=white" alt="Azure">
-  <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge" alt="License">
+  <img src="https://img.shields.io/github/v/release/leonardo-matheus/azure-ai-cli?style=for-the-badge" alt="Release">
 </p>
 
-<h1 align="center">
-  <br>
-  🐱 AICLI
-  <br>
-</h1>
+<h1 align="center">❯ AICLI</h1>
 
-<h4 align="center">A powerful CLI for Azure AI Foundry models inspired by <a href="https://github.com/anthropics/claude-code">Claude Code</a></h4>
+<h4 align="center">A powerful CLI for Azure AI Foundry models — Claude, GPT, DeepSeek and more.</h4>
 
 <p align="center">
   <a href="#features">Features</a> •
   <a href="#installation">Installation</a> •
   <a href="#usage">Usage</a> •
-  <a href="#commands">Commands</a> •
   <a href="#configuration">Configuration</a> •
-  <a href="#building">Building</a>
+  <a href="https://leonardo-matheus.github.io/azure-ai-cli/">Documentation</a>
 </p>
 
 ---
 
 ```
 ▛▀▀▀▀▀▀▀▀▜  AICLI v1.0.0
-▌ /\_/\  ▐  ● gpt-4-turbo (GPT)
+▌ /\_/\  ▐  ● Claude Opus 4.5 (Claude)
 ▙▄▄▄▄▄▄▄▄▟  ~/projects/my-app
 
- 🎯 Switch models anytime! Use /model to select your preferred LLM.
-    By Leonardo M. Silva · Type /help for commands
+❯ Create a REST API with Express and TypeScript
 
-❯ explain this code @main.rs
-
-● Assistant
-  This file contains the main entry point for the application...
-
- [Auto] │ Context (2k / 1%) │ ● gpt-4-turbo │ ~/projects/my-app
+● AICLI
+  Creating Express TypeScript project...
+  ✓ Created src/index.ts
+  ✓ Created package.json
+  ✓ Installed dependencies
 ```
 
-## ✨ Features
+## Features
 
-- **🤖 Multi-Model Support** - Claude, GPT-4, DeepSeek R1 and more via Azure AI Foundry
-- **⚡ Tool Execution** - Automatically executes shell commands, reads/writes files
-- **📁 File Context** - Reference files with `@filename` syntax
-- **🔄 Streaming Responses** - Real-time token streaming output
-- **📊 Context Tracking** - Visual progress bar showing token usage
-- **🗜️ Auto-Compact** - Automatically summarizes conversation when context is full
-- **⌨️ Tab Completion** - Smart completion for commands (`/`) and files (`@`)
-- **🌍 Multi-language** - English and Portuguese support
-- **🎨 Beautiful UI** - Responsive, centered banner with colors
+- **Multi-Model Support** — Switch between Claude, GPT, DeepSeek instantly with `/model`
+- **Syntax Highlighting** — Beautiful Dracula-themed code blocks with language detection
+- **Tool Execution** — Execute commands, read/write files, search codebase automatically
+- **File Context** — Include files with `@filename` for context-aware responses
+- **Streaming** — Real-time streaming with animated thinking indicator
+- **Context Tracking** — Visual progress bar showing token usage with auto-compact
+- **Tab Completion** — Smart completion for commands and file paths
+- **Multilingual** — English and Portuguese interfaces
+- **Easy Install** — One command global installation with `/install`
 
-## 📦 Installation
+## Installation
 
-### Pre-built Binary (Windows)
+### Quick Install
 
-Download the latest release from the [Releases](https://github.com/leonardo-matheus/aicli/releases) page.
-
-### From Source
+Download the latest release from [Releases](https://github.com/leonardo-matheus/azure-ai-cli/releases) and run:
 
 ```bash
-# Clone the repository
-git clone https://github.com/leonardo-matheus/aicli.git
-cd aicli
+./aicli
+❯ /install
+```
 
-# Build release binary
+Restart your terminal, then use `aicli` from anywhere.
+
+### Build from Source
+
+```bash
+git clone https://github.com/leonardo-matheus/azure-ai-cli.git
+cd azure-ai-cli
 cargo build --release
-
-# Binary will be at target/release/aicli.exe
+./target/release/aicli
 ```
 
-## 🚀 Usage
-
-### First Run
-
-On first run, AICLI will guide you through configuration:
+## Usage
 
 ```bash
+# Start AICLI
 aicli
-```
 
-Or configure manually:
+# Chat with AI
+❯ Create a REST API with Express and TypeScript
 
-```bash
-aicli --config
-```
+# Include file context
+❯ Explain this code @src/main.rs
 
-### Environment Variables
-
-You can also use environment variables:
-
-```bash
-export AZURE_API_KEY="your-api-key"
-export AZURE_ENDPOINT="https://your-resource.services.ai.azure.com"
-export AZURE_DEPLOYMENT="gpt-4-turbo"
-
-aicli
-```
-
-### Basic Usage
-
-```bash
-# Start interactive chat
-aicli
+# Switch models
+❯ /model gpt-4
 
 # Show help
-aicli --help
-
-# Show version
-aicli --version
+❯ /help
 ```
 
-### File Context
+## Commands
 
-Reference files in your prompts using `@`:
+| Command | Description |
+|---------|-------------|
+| `/help` | Show available commands |
+| `/model` | Interactive model selection |
+| `/model <name>` | Switch to specific model |
+| `/clear` | Clear conversation history |
+| `/config` | Show current configuration |
+| `/lang <en\|pt>` | Change language |
+| `/install` | Install AICLI globally |
+| `/uninstall` | Uninstall AICLI |
+| `/exit` | Exit AICLI |
+| `@file` | Include file as context |
 
-```
-> explain @src/main.rs
+## Configuration
 
-> what's the difference between @old.txt and @new.txt?
-
-> refactor @utils.js to use async/await
-```
-
-## 📋 Commands
-
-| Command | Alias | Description |
-|---------|-------|-------------|
-| `/help` | `/h`, `/?` | Show available commands |
-| `/exit` | `/quit`, `/q` | Exit the CLI |
-| `/clear` | `/c` | Clear conversation history |
-| `/model` | | Interactive model selection |
-| `/model <name>` | | Switch to specific model |
-| `/add-model` | | Add a new model configuration |
-| `/config` | | Show current configuration |
-| `/history` | | Show conversation history |
-| `/lang` | | Change language (en/pt) |
-
-## ⚙️ Configuration
-
-Configuration is stored at `~/.aicli/config.toml`.
-
-See [`config.example.toml`](config.example.toml) for a complete example with all model types.
+Configuration is stored at `~/.aicli/config.toml`:
 
 ```toml
-active_model = "gpt-4-turbo"
+active_model = "claude-opus"
 language = "en"
 
-[models.gpt-4-turbo]
-name = "gpt-4-turbo"
-api_key = "your-api-key"
-endpoint = "https://your-resource.services.ai.azure.com"
-deployment = "gpt-4-turbo"
-model_type = "gpt"
-max_tokens = 4096
-temperature = 0.7
-
 [models.claude-opus]
-name = "claude-opus"
+name = "Claude Opus 4.5"
 api_key = "your-api-key"
 endpoint = "https://your-resource.services.ai.azure.com"
-deployment = "claude-3-opus"
+deployment = "claude-opus-4-5"
 model_type = "claude"
-max_tokens = 4096
+max_tokens = 8192
 temperature = 0.7
 ```
 
 ### Model Types
 
-| Type | Models | Context Window |
-|------|--------|----------------|
-| `claude` | Claude 3 Opus, Sonnet, Haiku | 200K tokens |
-| `gpt` | GPT-4, GPT-4 Turbo, GPT-4o | 128K tokens |
-| `deepseek` | DeepSeek R1, DeepSeek Coder | 64K tokens |
-| `other` | Other models | 32K tokens |
+| Type | Models | Context |
+|------|--------|---------|
+| `claude` | Claude 3 Opus, Sonnet, Haiku | 200K |
+| `gpt` | GPT-4, GPT-4 Turbo, GPT-3.5 | 128K |
+| `deepseek` | DeepSeek Coder, Chat | 64K |
+| `other` | Any OpenAI-compatible | 32K |
 
-## 🛠️ Available Tools
+## Tools
 
-AICLI can automatically execute these tools:
+AICLI can automatically execute:
 
 | Tool | Description |
 |------|-------------|
@@ -187,86 +139,21 @@ AICLI can automatically execute these tools:
 | `write_file` | Create or overwrite files |
 | `edit_file` | Modify existing files |
 | `list_directory` | List directory contents |
-| `search_files` | Find files by pattern (glob) |
-| `search_content` | Search text in files (grep) |
+| `search_files` | Find files by pattern |
+| `search_content` | Search text in files |
 
-## 🔧 Building
+## Documentation
 
-### Requirements
+Full documentation: [leonardo-matheus.github.io/azure-ai-cli](https://leonardo-matheus.github.io/azure-ai-cli/)
 
-- Rust 1.70+
-- Cargo
+## License
 
-### Build Commands
+MIT License — see [LICENSE](LICENSE) for details.
 
-```bash
-# Debug build
-cargo build
+## Author
 
-# Release build (optimized)
-cargo build --release
-
-# Run tests
-cargo test
-
-# Run directly
-cargo run
-```
-
-### Project Structure
-
-```
-aicli/
-├── Cargo.toml          # Dependencies and metadata
-├── src/
-│   ├── main.rs         # Entry point and CLI args
-│   ├── chat.rs         # Main conversation loop
-│   ├── client.rs       # Azure AI API client
-│   ├── config.rs       # Configuration management
-│   ├── tools.rs        # Tool implementations
-│   ├── ui.rs           # Terminal UI and banner
-│   ├── input.rs        # Input handling and completion
-│   └── i18n.rs         # Internationalization
-└── README.md
-```
-
-## 🎯 Context Management
-
-AICLI tracks token usage and automatically manages context:
-
-- **Visual Progress** - See current token usage in the banner
-- **Color Coding** - Green (<50%), Yellow (50-80%), Red (>80%)
-- **Auto-Compact** - At 85% capacity, older messages are summarized
-- **Per-Response Status** - Token count shown after each response
-
-```
-  [15K/128K tokens]
-```
-
-## 🌐 Internationalization
-
-Switch languages with `/lang`:
-
-```
-> /lang pt
-✓ Language changed to Português
-
-> /lang en
-✓ Language changed to English
-```
-
-## 📄 License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
-## 👨‍💻 Author
-
-**Leonardo M. Silva**
-
-- GitHub: [@leonardo-matheus](https://github.com/leonardo-matheus)
+**Leonardo M. Silva** — [@leonardo-matheus](https://github.com/leonardo-matheus)
 
 ---
 
-<p align="center">
-  Made with ❤️ and 🦀 Rust
-</p>
+<p align="center">Built with ❤️ and Rust</p>
