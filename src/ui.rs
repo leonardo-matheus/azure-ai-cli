@@ -204,9 +204,9 @@ impl UI {
         println!("  \x1b[38;5;{}m/help\x1b[0m", DRACULA_COMMENT);
     }
 
-    /// Get the input prompt string
+    /// Get the input prompt string (with markers for rustyline to calculate width correctly)
     pub fn get_prompt(&self) -> String {
-        "\x1b[38;5;117m❯\x1b[0m ".to_string()
+        "\x01\x1b[38;5;117m\x02❯\x01\x1b[0m\x02 ".to_string()
     }
 
     /// Print a newline before input prompt
