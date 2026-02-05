@@ -6,10 +6,6 @@ use crossterm::{
 use std::io::{self, Write};
 use std::path::Path;
 use crate::i18n::{Language, Strings};
-use syntect::easy::HighlightLines;
-use syntect::highlighting::{ThemeSet, Style, Color};
-use syntect::parsing::SyntaxSet;
-use syntect::util::LinesWithEndings;
 
 const GITHUB_URL: &str = "https://github.com/leonardo-matheus";
 const VERSION: &str = "1.0.0";
@@ -37,8 +33,6 @@ pub struct UI {
     in_code_block: std::cell::Cell<bool>,
     code_buffer: std::cell::RefCell<String>,
     code_lang: std::cell::RefCell<String>,
-    syntax_set: SyntaxSet,
-    theme_set: ThemeSet,
 }
 
 impl UI {
@@ -55,8 +49,6 @@ impl UI {
             in_code_block: std::cell::Cell::new(false),
             code_buffer: std::cell::RefCell::new(String::new()),
             code_lang: std::cell::RefCell::new(String::new()),
-            syntax_set: SyntaxSet::load_defaults_newlines(),
-            theme_set: ThemeSet::load_defaults(),
         }
     }
 
@@ -361,96 +353,79 @@ impl UI {
         self.code_lang.borrow_mut().clear();
     }
 
-    /// Highlight code with Dracula-like theme colors
+    /// Highlight code with simple Dracula-like colors (no external themes)
     fn highlight_code(&self, code: &str, lang: &str) -> String {
-        // Map language aliases
-        let syntax_name = match lang.to_lowercase().as_str() {
-            "js" | "javascript" => "JavaScript",
-            "ts" | "typescript" => "TypeScript",
-            "rs" | "rust" => "Rust",
-            "py" | "python" => "Python",
-            "java" => "Java",
-            "html" => "HTML",
-            "css" => "CSS",
-            "json" => "JSON",
-            "xml" => "XML",
-            "sql" => "SQL",
-            "sh" | "bash" | "shell" => "Bourne Again Shell (bash)",
-            "yml" | "yaml" => "YAML",
-            "toml" => "TOML",
-            "md" | "markdown" => "Markdown",
-            "c" => "C",
-            "cpp" | "c++" => "C++",
-            "go" => "Go",
-            "rb" | "ruby" => "Ruby",
-            "php" => "PHP",
-            "swift" => "Swift",
-            "kt" | "kotlin" => "Kotlin",
-            _ => lang,
-        };
-
-        let syntax = self.syntax_set
-            .find_syntax_by_name(syntax_name)
-            .or_else(|| self.syntax_set.find_syntax_by_extension(lang))
-            .unwrap_or_else(|| self.syntax_set.find_syntax_plain_text());
-
-        // Use available theme (try monokai, fallback to any available)
-        let theme = self.theme_set.themes
-            .get("base16-monokai.dark")
-            .or_else(|| self.theme_set.themes.get("base16-ocean.dark"))
-            .or_else(|| self.theme_set.themes.values().next())
-            .expect("No themes available");
-        let mut highlighter = HighlightLines::new(syntax, theme);
-
+        // Simple syntax highlighting without syntect themes
         let mut result = String::new();
-        for line in LinesWithEndings::from(code) {
-            match highlighter.highlight_line(line, &self.syntax_set) {
-                Ok(ranges) => {
-                    for (style, text) in ranges {
-                        let colored = Self::style_to_ansi(&style, text);
-                        result.push_str(&colored);
-                    }
-                }
-                Err(_) => {
-                    // Fallback: just use default code color
-                    result.push_str(&format!("\x1b[38;5;222m{}\x1b[0m", line));
-                }
-            }
+
+        for line in code.lines() {
+            let highlighted = self.highlight_line_simple(line, lang);
+            result.push_str(&highlighted);
+            result.push('\n');
         }
+
+        // Remove trailing newline
+        if result.ends_with('\n') {
+            result.pop();
+        }
+
         result
     }
 
-    /// Convert syntect Style to ANSI escape codes (Dracula-inspired)
-    fn style_to_ansi(style: &Style, text: &str) -> String {
-        let fg = style.foreground;
+    /// Simple line highlighting based on patterns
+    fn highlight_line_simple(&self, line: &str, _lang: &str) -> String {
+        let trimmed = line.trim();
 
-        // Map to closest Dracula colors
-        let color_code = match (fg.r, fg.g, fg.b) {
-            // Pink/Magenta (keywords) - Dracula pink #ff79c6
-            (r, g, b) if r > 200 && g < 150 && b > 150 => "205",
-            // Purple (constants) - Dracula purple #bd93f9
-            (r, g, b) if r > 150 && g < 180 && b > 200 => "141",
-            // Green (strings) - Dracula green #50fa7b
-            (r, g, b) if g > 200 && r < 150 => "84",
-            // Yellow (classes/functions) - Dracula yellow #f1fa8c
-            (r, g, b) if r > 200 && g > 200 && b < 150 => "228",
-            // Cyan (support) - Dracula cyan #8be9fd
-            (r, g, b) if g > 200 && b > 200 && r < 150 => "117",
-            // Orange (numbers) - Dracula orange #ffb86c
-            (r, g, b) if r > 200 && g > 150 && g < 200 && b < 150 => "215",
-            // Red (errors/tags) - Dracula red #ff5555
-            (r, _, _) if r > 220 => "203",
-            // White/light gray (default text) - Dracula foreground #f8f8f2
-            (r, g, b) if r > 200 && g > 200 && b > 200 => "255",
-            // Gray (comments) - Dracula comment #6272a4
-            (r, g, b) if r < 150 && g < 150 && b < 180 => "103",
-            // Default: use actual RGB if terminal supports it
-            _ => {
-                return format!("\x1b[38;2;{};{};{}m{}\x1b[0m", fg.r, fg.g, fg.b, text);
+        // Comments (gray)
+        if trimmed.starts_with("//") || trimmed.starts_with("#") || trimmed.starts_with("--") {
+            return format!("\x1b[38;5;103m{}\x1b[0m", line);
+        }
+
+        // Empty line
+        if trimmed.is_empty() {
+            return line.to_string();
+        }
+
+        // Apply basic highlighting
+        let mut result = line.to_string();
+
+        // Keywords (pink)
+        let keywords = ["fn ", "func ", "function ", "def ", "class ", "struct ", "enum ",
+                       "impl ", "trait ", "interface ", "const ", "let ", "var ", "if ",
+                       "else ", "for ", "while ", "return ", "import ", "from ", "use ",
+                       "pub ", "private ", "public ", "async ", "await ", "match ", "case "];
+        for kw in keywords {
+            if result.contains(kw) {
+                result = result.replace(kw, &format!("\x1b[38;5;205m{}\x1b[0m", kw));
             }
-        };
+        }
 
-        format!("\x1b[38;5;{}m{}\x1b[0m", color_code, text)
+        // Strings (green) - simple pattern for quoted strings
+        let mut in_string = false;
+        let mut string_char = '"';
+        let mut new_result = String::new();
+        let mut chars = result.chars().peekable();
+
+        while let Some(c) = chars.next() {
+            if !in_string && (c == '"' || c == '\'') {
+                in_string = true;
+                string_char = c;
+                new_result.push_str("\x1b[38;5;84m");
+                new_result.push(c);
+            } else if in_string && c == string_char {
+                new_result.push(c);
+                new_result.push_str("\x1b[0m");
+                in_string = false;
+            } else {
+                new_result.push(c);
+            }
+        }
+
+        if in_string {
+            new_result.push_str("\x1b[0m");
+        }
+
+        new_result
     }
 
     /// Format complete response with syntax highlighting for code blocks
