@@ -230,7 +230,8 @@ impl Hinter for InputHelper {
 
 impl Highlighter for InputHelper {
     fn highlight_prompt<'b, 's: 'b, 'p: 'b>(&'s self, prompt: &'p str, _default: bool) -> Cow<'b, str> {
-        Cow::Borrowed(prompt)
+        // Add cyan color to the prompt
+        Cow::Owned(format!("\x1b[38;5;117m{}\x1b[0m", prompt))
     }
 
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
