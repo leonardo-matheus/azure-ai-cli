@@ -88,34 +88,41 @@ impl UI {
         format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", url, text)
     }
 
-    /// Startup animation
+    /// Startup animation - simple fade in effect
     pub fn play_startup_animation(&self) {
-        let frames = [
-            ("▛▀▀▀▀▀▀▀▀▜", ""),
-            ("▛▀▀▀▀▀▀▀▀▜", "▌        ▐"),
-            ("▛▀▀▀▀▀▀▀▀▜", "▌ /\\     ▐"),
-            ("▛▀▀▀▀▀▀▀▀▜", "▌ /\\_/\\  ▐"),
-            ("▛▀▀▀▀▀▀▀▀▜", "▌( o.o ) ▐"),
-            ("▛▀▀▀▀▀▀▀▀▜", "▌ > ^ <  ▐"),
+        let cat_frames = [
+            vec![""],
+            vec!["  /\\_/\\  "],
+            vec!["  /\\_/\\  ", " ( o.o ) "],
+            vec!["  /\\_/\\  ", " ( o.o ) ", "  > ^ <  "],
         ];
 
         print!("\x1b[?25l"); // Hide cursor
         io::stdout().flush().unwrap();
 
-        for (i, (top, mid)) in frames.iter().enumerate() {
+        for frame in cat_frames.iter() {
+            // Clear lines and redraw
             print!("\r\x1b[K");
-            print!("\x1b[38;5;{}m{}\x1b[0m", DRACULA_PURPLE, top);
-            if !mid.is_empty() {
-                print!("\n\r\x1b[K\x1b[38;5;{}m{}\x1b[0m", DRACULA_CYAN, mid);
-                print!("\x1b[1A"); // Move up
+            for (i, line) in frame.iter().enumerate() {
+                if i > 0 {
+                    print!("\n\r\x1b[K");
+                }
+                print!("\x1b[38;5;{}m{}\x1b[0m", DRACULA_CYAN, line);
             }
             io::stdout().flush().unwrap();
-            std::thread::sleep(std::time::Duration::from_millis(80));
+            std::thread::sleep(std::time::Duration::from_millis(100));
+
+            // Move cursor back up
+            if frame.len() > 1 {
+                print!("\x1b[{}A", frame.len() - 1);
+            }
         }
 
-        // Final frame with full logo
-        print!("\r\x1b[K");
-        println!();
+        // Clear animation area
+        for _ in 0..3 {
+            print!("\r\x1b[K\n");
+        }
+        print!("\x1b[3A"); // Move back up
         print!("\x1b[?25h"); // Show cursor
         io::stdout().flush().unwrap();
     }
@@ -182,61 +189,36 @@ impl UI {
         let ctx_percent = self.get_context_percent();
         let ctx_color = if ctx_percent > 80 { DRACULA_RED } else if ctx_percent > 50 { DRACULA_ORANGE } else { DRACULA_GREEN };
 
-        let model_display = if self.current_model.len() > 25 {
-            format!("{}...", &self.current_model[..22])
+        let model_display = if self.current_model.len() > 20 {
+            format!("{}...", &self.current_model[..17])
         } else {
             self.current_model.clone()
         };
 
-        let path_display = Self::truncate_path(&self.current_path, 25);
-
-        // Status line with better formatting
+        // Compact status line
         println!();
-        print!(" \x1b[38;5;{}m●\x1b[0m \x1b[38;5;{}m{}\x1b[0m",
+        println!("\x1b[38;5;{}m─────────────────────────────────────────────────────────\x1b[0m", DRACULA_COMMENT);
+        print!("\x1b[38;5;{}m●\x1b[0m \x1b[38;5;{}m{}\x1b[0m",
             DRACULA_GREEN, DRACULA_YELLOW, model_display);
-        print!(" \x1b[38;5;{}m│\x1b[0m ", DRACULA_COMMENT);
-        print!("\x1b[38;5;{}mContext: {}k ({}%)\x1b[0m", ctx_color, ctx_k, ctx_percent);
-        print!(" \x1b[38;5;{}m│\x1b[0m ", DRACULA_COMMENT);
-        println!("\x1b[38;5;{}m{}\x1b[0m", DRACULA_COMMENT, path_display);
+        print!("  \x1b[38;5;{}m⧗\x1b[0m \x1b[38;5;{}m{}k ({}%)\x1b[0m", DRACULA_COMMENT, ctx_color, ctx_k, ctx_percent);
+        println!("  \x1b[38;5;{}m/help\x1b[0m", DRACULA_COMMENT);
     }
 
-    /// Draw the input box frame
+    /// Draw the input prompt
     pub fn draw_input_box(&self) {
-        let w = self.term_width.min(120);
-        let border = "─".repeat(w - 2);
-
         println!();
-        println!("\x1b[38;5;{}m┌{}┐\x1b[0m", DRACULA_COMMENT, border);
-        print!("\x1b[38;5;{}m│\x1b[0m \x1b[38;5;{}m❯\x1b[0m ", DRACULA_COMMENT, DRACULA_CYAN);
+        print!("\x1b[38;5;{}m❯\x1b[0m ", DRACULA_CYAN);
+        io::stdout().flush().unwrap();
     }
 
-    /// Close the input box after reading input
+    /// Close the input box after reading input (no-op with simple prompt)
     pub fn close_input_box(&self, _input: &str) {
-        let w = self.term_width.min(120);
-        let border = "─".repeat(w - 2);
-        println!("\x1b[38;5;{}m└{}┘\x1b[0m", DRACULA_COMMENT, border);
+        // Simple prompt doesn't need closing
     }
 
-    /// Draw bottom status bar with shortcuts
+    /// Draw bottom status bar with shortcuts (only shown once after response)
     pub fn draw_shortcuts_bar(&self) {
-        let ctx_k = self.context_used / 1000;
-        let ctx_percent = self.get_context_percent();
-        let ctx_color = if ctx_percent > 80 { DRACULA_RED } else if ctx_percent > 50 { DRACULA_ORANGE } else { DRACULA_GREEN };
-
-        let model_short = if self.current_model.len() > 15 {
-            format!("{}...", &self.current_model[..12])
-        } else {
-            self.current_model.clone()
-        };
-
-        print!(" \x1b[38;5;{}m[{}k/{}%]\x1b[0m", ctx_color, ctx_k, ctx_percent);
-        print!(" \x1b[38;5;{}m│\x1b[0m", DRACULA_COMMENT);
-        print!(" \x1b[38;5;{}m●\x1b[0m \x1b[38;5;{}m{}\x1b[0m", DRACULA_GREEN, DRACULA_YELLOW, model_short);
-        print!(" \x1b[38;5;{}m│\x1b[0m", DRACULA_COMMENT);
-        print!(" \x1b[38;5;{}m@\x1b[0mfiles", DRACULA_CYAN);
-        print!(" \x1b[38;5;{}m/\x1b[0mcmds", DRACULA_PINK);
-        print!(" \x1b[38;5;{}m│\x1b[0m", DRACULA_COMMENT);
-        println!(" \x1b[38;5;{}m/help\x1b[0m", DRACULA_COMMENT);
+        // Now handled in print_context_status, this is a no-op
     }
 
     pub fn print_model_switch(&self, model: &str, model_type: &str) {

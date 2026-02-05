@@ -68,30 +68,27 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
     let mut total_tokens: usize = 0;
 
     loop {
-        // Draw input box
-        ui.draw_shortcuts_bar();
+        // Draw input prompt
         ui.draw_input_box();
 
         let input = match input_reader.readline("") {
             Ok(line) => line,
             Err(ReadlineError::Interrupted) => {
-                ui.close_input_box("");
+                println!();
                 ui.print_info(&ui.strings.ctrl_c_hint().to_string());
                 continue;
             }
             Err(ReadlineError::Eof) => {
-                ui.close_input_box("");
                 break;
             }
             Err(err) => {
-                ui.close_input_box("");
+                println!();
                 ui.print_error(&format!("Input error: {}", err));
                 continue;
             }
         };
 
         let input = input.trim();
-        ui.close_input_box(input);
         if input.is_empty() {
             continue;
         }
