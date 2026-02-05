@@ -223,6 +223,7 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
         }
 
         ui.print_newline();
+        ui.print_context_status();
     }
 
     println!("\n\x1b[36m    {} 🐱\x1b[0m\n", ui.strings.goodbye());

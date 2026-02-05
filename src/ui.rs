@@ -51,13 +51,31 @@ impl UI {
     }
 
     pub fn print_banner(&self, model: &str, model_type: &str, current_dir: &str) {
-        // Responsive width: min 46, max based on terminal
-        let w = self.term_width.min(80).max(46);
+        // Responsive: use full terminal width, min 50
+        let w = self.term_width.max(50);
         let inner = w - 2;
 
-        // Helper for centering text
+        // Calculate visible length (excluding ANSI codes)
+        let visible_len = |s: &str| -> usize {
+            let mut len = 0;
+            let mut in_escape = false;
+            for c in s.chars() {
+                if c == '\x1b' {
+                    in_escape = true;
+                } else if in_escape {
+                    if c == 'm' {
+                        in_escape = false;
+                    }
+                } else {
+                    len += 1;
+                }
+            }
+            len
+        };
+
+        // Helper for centering text with ANSI codes
         let center = |text: &str, width: usize| -> String {
-            let text_len = text.chars().count();
+            let text_len = visible_len(text);
             if text_len >= width {
                 return text.to_string();
             }
@@ -68,7 +86,7 @@ impl UI {
         };
 
         // Truncate path for display
-        let max_path_len = inner - 4;
+        let max_path_len = inner.saturating_sub(4);
         let display_dir = Self::truncate_path(current_dir, max_path_len);
 
         // Context info
@@ -76,13 +94,17 @@ impl UI {
         let ctx_color = if ctx_percent > 80 { "203" } else if ctx_percent > 50 { "220" } else { "82" };
         let ctx_text = format!("{}K/{}K tokens", self.context_used / 1000, self.context_max / 1000);
 
+        // Author with hyperlink
+        let author_link = Self::hyperlink("Leonardo M. Silva", GITHUB_URL);
+        let author_plain = "By Leonardo M. Silva";
+
         let line = "─".repeat(inner);
         let empty = " ".repeat(inner);
 
-        // Title line with centered "AICLI"
+        // Title line with "AICLI"
         let title = "─ AICLI ";
         let title_len = title.len();
-        let remaining = inner - title_len;
+        let remaining = inner.saturating_sub(title_len);
         let title_line = format!("{}{}", title, "─".repeat(remaining));
 
         println!();
@@ -91,48 +113,57 @@ impl UI {
 
         // Welcome message
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[1;37mWelcome back!\x1b[0m", inner + 9)); // +9 for ANSI codes
+            center("\x1b[1;37mWelcome back!\x1b[0m", inner));
 
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
 
         // Cat ASCII art - centered
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[38;5;220m/\\_/\\\x1b[0m", inner + 11));
+            center("\x1b[38;5;220m/\\_/\\\x1b[0m", inner));
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[38;5;220m( o.o )\x1b[0m", inner + 11));
+            center("\x1b[38;5;220m( o.o )\x1b[0m", inner));
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center("\x1b[38;5;220m> ^ <\x1b[0m", inner + 11));
+            center("\x1b[38;5;220m> ^ <\x1b[0m", inner));
 
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
 
         // Model name - centered and bold
         let model_display = format!("\x1b[1;38;5;220m{}\x1b[0m", model);
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&model_display, inner + 12));
+            center(&model_display, inner));
 
         // Model type - centered
         let type_display = format!("\x1b[38;5;245m{}\x1b[0m", model_type);
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&type_display, inner + 11));
+            center(&type_display, inner));
 
         // Context - centered with color
         let ctx_display = format!("\x1b[38;5;{}m{}\x1b[0m", ctx_color, ctx_text);
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&ctx_display, inner + 11));
+            center(&ctx_display, inner));
 
         // Path - centered
         let path_display = format!("\x1b[38;5;245m{}\x1b[0m", display_dir);
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
-            center(&path_display, inner + 11));
+            center(&path_display, inner));
 
         println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;75m│\x1b[0m", empty);
+
+        // Author line - centered with hyperlink
+        // We need to calculate padding using plain text length but print with hyperlink
+        let author_visible_len = author_plain.len();
+        let author_padding = inner.saturating_sub(author_visible_len);
+        let author_left = author_padding / 2;
+        let author_right = author_padding - author_left;
+        println!("\x1b[38;5;75m│\x1b[0m{}\x1b[38;5;245m{}\x1b[0m{}\x1b[38;5;75m│\x1b[0m",
+            " ".repeat(author_left), format!("By {}", author_link), " ".repeat(author_right));
+
         println!("\x1b[38;5;75m╰{}╯\x1b[0m", line);
         println!();
     }
 
     pub fn print_welcome_line(&self) {
-        let author_link = Self::hyperlink("Leonardo M. Silva", GITHUB_URL);
-        println!("  \x1b[38;5;245mBy {} · v{}\x1b[0m", author_link, VERSION);
+        println!("  \x1b[38;5;245mv{}\x1b[0m", VERSION);
         println!();
     }
 
@@ -222,6 +253,13 @@ impl UI {
 
     pub fn print_newline(&self) {
         println!();
+    }
+
+    pub fn print_context_status(&self) {
+        let ctx_percent = self.get_context_percent();
+        let ctx_color = if ctx_percent > 80 { "203" } else if ctx_percent > 50 { "220" } else { "82" };
+        println!("  \x1b[38;5;240m[\x1b[38;5;{}m{}K/{}K tokens\x1b[38;5;240m]\x1b[0m",
+            ctx_color, self.context_used / 1000, self.context_max / 1000);
     }
 
     pub fn print_tool_call(&self, tool_name: &str, input: &str) {
