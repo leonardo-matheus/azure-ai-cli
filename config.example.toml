@@ -1,0 +1,62 @@
+# AICLI Configuration Example
+# Copy this file to ~/.aicli/config.toml and fill in your credentials
+
+active_model = "gpt-4-turbo"
+github_username = "your-username"
+language = "en"  # en or pt
+
+# GPT-4 Turbo (Azure OpenAI)
+[models.gpt-4-turbo]
+name = "GPT-4 Turbo"
+api_key = "your-api-key-here"
+endpoint = "https://your-resource.services.ai.azure.com"
+deployment = "gpt-4-turbo"
+model_type = "gpt"
+max_tokens = 16384  # Max output tokens
+temperature = 0.7
+
+# GPT-4o (Azure OpenAI)
+[models.gpt-4o]
+name = "GPT-4o (Omni)"
+api_key = "your-api-key-here"
+endpoint = "https://your-resource.services.ai.azure.com"
+deployment = "gpt-4o"
+model_type = "gpt"
+max_tokens = 16384
+temperature = 0.7
+
+# Claude Opus 4.5 (Azure AI Foundry - Anthropic)
+[models.claude-opus-4-5]
+name = "Claude Opus 4.5"
+api_key = "your-api-key-here"
+endpoint = "https://your-resource.services.ai.azure.com"
+deployment = "claude-opus-4-5"
+model_type = "claude"
+max_tokens = 8192
+temperature = 0.7
+
+# Claude Sonnet 4 (Azure AI Foundry - Anthropic)
+[models.claude-sonnet-4]
+name = "Claude Sonnet 4"
+api_key = "your-api-key-here"
+endpoint = "https://your-resource.services.ai.azure.com"
+deployment = "claude-sonnet-4"
+model_type = "claude"
+max_tokens = 8192
+temperature = 0.7
+
+# DeepSeek R1 (Azure AI Foundry)
+[models.deepseek-r1]
+name = "DeepSeek R1"
+api_key = "your-api-key-here"
+endpoint = "https://your-resource.services.ai.azure.com"
+deployment = "deepseek-r1"
+model_type = "deepseek"
+max_tokens = 8192
+temperature = 0.7
+
+# High Performance Configuration Tips:
+# - max_tokens: Higher values allow longer responses (costs more)
+# - temperature: 0.0 = deterministic, 1.0 = creative
+# - For coding tasks: temperature 0.3-0.5
+# - For creative tasks: temperature 0.7-0.9

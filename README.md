@@ -140,7 +140,9 @@ Reference files in your prompts using `@`:
 
 ## ⚙️ Configuration
 
-Configuration is stored at `~/.aicli/config.toml`:
+Configuration is stored at `~/.aicli/config.toml`.
+
+See [`config.example.toml`](config.example.toml) for a complete example with all model types.
 
 ```toml
 active_model = "gpt-4-turbo"
