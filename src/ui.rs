@@ -204,10 +204,14 @@ impl UI {
         println!("  \x1b[38;5;{}m/help\x1b[0m", DRACULA_COMMENT);
     }
 
-    /// Draw the input prompt
+    /// Get the input prompt string
+    pub fn get_prompt(&self) -> String {
+        "\x1b[38;5;117m❯\x1b[0m ".to_string()
+    }
+
+    /// Print a newline before input prompt
     pub fn draw_input_box(&self) {
         println!();
-        print!("\x1b[38;5;{}m❯\x1b[0m ", DRACULA_CYAN);
         io::stdout().flush().unwrap();
     }
 
@@ -267,7 +271,7 @@ impl UI {
 
     pub fn print_assistant_prefix(&self) {
         println!();
-        println!("\x1b[38;5;75m●\x1b[0m \x1b[1;37mAssistant\x1b[0m");
+        println!("\x1b[38;5;75m●\x1b[0m \x1b[1;38;5;75mAICLI\x1b[0m");
         print!("  ");
         io::stdout().flush().unwrap();
     }

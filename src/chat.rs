@@ -70,8 +70,9 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
     loop {
         // Draw input prompt
         ui.draw_input_box();
+        let prompt = ui.get_prompt();
 
-        let input = match input_reader.readline("") {
+        let input = match input_reader.readline(&prompt) {
             Ok(line) => line,
             Err(ReadlineError::Interrupted) => {
                 println!();

@@ -229,6 +229,10 @@ impl Hinter for InputHelper {
 }
 
 impl Highlighter for InputHelper {
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(&'s self, prompt: &'p str, _default: bool) -> Cow<'b, str> {
+        Cow::Borrowed(prompt)
+    }
+
     fn highlight<'l>(&self, line: &'l str, _pos: usize) -> Cow<'l, str> {
         let mut result = String::new();
         let mut chars = line.chars().peekable();
