@@ -7,8 +7,35 @@ use crate::ui::UI;
 use anyhow::Result;
 use rustyline::error::ReadlineError;
 use std::time::Duration;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 const COMPACT_THRESHOLD: f32 = 0.85; // Compact when context reaches 85%
+
+/// Animated spinner that runs until stopped
+fn start_thinking_animation(ui: &UI) -> Arc<AtomicBool> {
+    let stop_flag = Arc::new(AtomicBool::new(false));
+    let stop_clone = stop_flag.clone();
+
+    let thinking_text = ui.strings.thinking().to_string();
+
+    std::thread::spawn(move || {
+        let mut frame = 0;
+        let spinners = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let dots = ["", ".", "..", "..."];
+
+        while !stop_clone.load(Ordering::Relaxed) {
+            let s = spinners[frame % spinners.len()];
+            let d = dots[(frame / 3) % dots.len()];
+            print!("\r\x1b[K\x1b[38;5;141m{}\x1b[0m \x1b[38;5;103m{}{}\x1b[0m", s, thinking_text, d);
+            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+            std::thread::sleep(Duration::from_millis(80));
+            frame += 1;
+        }
+    });
+
+    stop_flag
+}
 
 pub async fn run(mut config: AppConfig) -> Result<()> {
     let mut ui = UI::new(config.language);
@@ -30,6 +57,10 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
         .unwrap_or_else(|_| ".".to_string());
 
     ui.set_model_info(&active_model.name, &active_model.model_type.to_string(), &current_dir);
+
+    // Startup animation
+    ui.play_startup_animation();
+
     ui.print_banner(&active_model.name, &active_model.model_type.to_string(), &current_dir);
     ui.print_welcome_line();
 
@@ -37,22 +68,30 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
     let mut total_tokens: usize = 0;
 
     loop {
-        let input = match input_reader.readline("> ") {
+        // Draw input box
+        ui.draw_shortcuts_bar();
+        ui.draw_input_box();
+
+        let input = match input_reader.readline("") {
             Ok(line) => line,
             Err(ReadlineError::Interrupted) => {
-                println!("\n\x1b[90m    ({})\x1b[0m", ui.strings.ctrl_c_hint());
+                ui.close_input_box("");
+                ui.print_info(&ui.strings.ctrl_c_hint().to_string());
                 continue;
             }
             Err(ReadlineError::Eof) => {
+                ui.close_input_box("");
                 break;
             }
             Err(err) => {
+                ui.close_input_box("");
                 ui.print_error(&format!("Input error: {}", err));
                 continue;
             }
         };
 
         let input = input.trim();
+        ui.close_input_box(input);
         if input.is_empty() {
             continue;
         }
@@ -85,9 +124,6 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
             content: MessageContent::Text(full_message),
         });
 
-        // Show thinking indicator
-        ui.print_thinking(0);
-
         // Check if we need to auto-compact before the API call
         let context_percent = (total_tokens as f32) / (ui.context_max as f32);
         if context_percent > COMPACT_THRESHOLD && messages.len() > 4 {
@@ -100,9 +136,16 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
 
         let mut response_started = false;
         ui.reset_code_state();
+
+        // Start animated thinking spinner
+        let stop_animation = start_thinking_animation(&ui);
+
         let result = client
             .chat(&messages, |token| {
                 if !response_started {
+                    // Stop animation and clear line
+                    stop_animation.store(true, Ordering::Relaxed);
+                    std::thread::sleep(Duration::from_millis(100)); // Wait for animation to stop
                     ui.clear_line();
                     ui.print_assistant_prefix();
                     response_started = true;
@@ -110,6 +153,9 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
                 ui.print_token(token);
             })
             .await;
+
+        // Make sure animation is stopped
+        stop_animation.store(true, Ordering::Relaxed);
 
         match result {
             Ok((content, tool_calls, usage)) => {
@@ -165,9 +211,14 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
                         response_started = false;
                         ui.reset_code_state();
 
+                        // Start animated thinking spinner for follow-up
+                        let stop_animation = start_thinking_animation(&ui);
+
                         let follow_up = client
                             .chat(&messages, |token| {
                                 if !response_started {
+                                    stop_animation.store(true, Ordering::Relaxed);
+                                    std::thread::sleep(Duration::from_millis(100));
                                     ui.clear_line();
                                     ui.print_assistant_prefix();
                                     response_started = true;
@@ -175,6 +226,8 @@ pub async fn run(mut config: AppConfig) -> Result<()> {
                                 ui.print_token(token);
                             })
                             .await;
+
+                        stop_animation.store(true, Ordering::Relaxed);
 
                         match follow_up {
                             Ok((follow_content, follow_tools, follow_usage)) => {

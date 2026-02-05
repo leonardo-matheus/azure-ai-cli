@@ -15,6 +15,18 @@ use syntect::util::LinesWithEndings;
 const GITHUB_URL: &str = "https://github.com/leonardo-matheus";
 const VERSION: &str = "1.0.0";
 
+// Dracula theme colors
+const DRACULA_BG: &str = "236";      // #282a36
+const DRACULA_FG: &str = "255";      // #f8f8f2
+const DRACULA_CYAN: &str = "117";    // #8be9fd
+const DRACULA_GREEN: &str = "84";    // #50fa7b
+const DRACULA_ORANGE: &str = "215";  // #ffb86c
+const DRACULA_PINK: &str = "205";    // #ff79c6
+const DRACULA_PURPLE: &str = "141";  // #bd93f9
+const DRACULA_RED: &str = "203";     // #ff5555
+const DRACULA_YELLOW: &str = "228";  // #f1fa8c
+const DRACULA_COMMENT: &str = "103"; // #6272a4
+
 pub struct UI {
     pub strings: Strings,
     pub term_width: usize,
@@ -76,6 +88,38 @@ impl UI {
         format!("\x1b]8;;{}\x1b\\{}\x1b]8;;\x1b\\", url, text)
     }
 
+    /// Startup animation
+    pub fn play_startup_animation(&self) {
+        let frames = [
+            ("▛▀▀▀▀▀▀▀▀▜", ""),
+            ("▛▀▀▀▀▀▀▀▀▜", "▌        ▐"),
+            ("▛▀▀▀▀▀▀▀▀▜", "▌ /\\     ▐"),
+            ("▛▀▀▀▀▀▀▀▀▜", "▌ /\\_/\\  ▐"),
+            ("▛▀▀▀▀▀▀▀▀▜", "▌( o.o ) ▐"),
+            ("▛▀▀▀▀▀▀▀▀▜", "▌ > ^ <  ▐"),
+        ];
+
+        print!("\x1b[?25l"); // Hide cursor
+        io::stdout().flush().unwrap();
+
+        for (i, (top, mid)) in frames.iter().enumerate() {
+            print!("\r\x1b[K");
+            print!("\x1b[38;5;{}m{}\x1b[0m", DRACULA_PURPLE, top);
+            if !mid.is_empty() {
+                print!("\n\r\x1b[K\x1b[38;5;{}m{}\x1b[0m", DRACULA_CYAN, mid);
+                print!("\x1b[1A"); // Move up
+            }
+            io::stdout().flush().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(80));
+        }
+
+        // Final frame with full logo
+        print!("\r\x1b[K");
+        println!();
+        print!("\x1b[?25h"); // Show cursor
+        io::stdout().flush().unwrap();
+    }
+
     pub fn print_banner(&self, model: &str, model_type: &str, current_dir: &str) {
         let display_path = Self::truncate_path(current_dir, 40);
 
@@ -134,23 +178,65 @@ impl UI {
     }
 
     pub fn print_status_bar(&self) {
-        let w = self.term_width;
         let ctx_k = self.context_used / 1000;
         let ctx_percent = self.get_context_percent();
-        let ctx_color = if ctx_percent > 80 { "203" } else if ctx_percent > 50 { "220" } else { "82" };
+        let ctx_color = if ctx_percent > 80 { DRACULA_RED } else if ctx_percent > 50 { DRACULA_ORANGE } else { DRACULA_GREEN };
 
-        let model_display = if self.current_model.len() > 20 {
-            format!("{}...", &self.current_model[..17])
+        let model_display = if self.current_model.len() > 25 {
+            format!("{}...", &self.current_model[..22])
         } else {
             self.current_model.clone()
         };
 
-        let path_display = Self::truncate_path(&self.current_path, 20);
+        let path_display = Self::truncate_path(&self.current_path, 25);
 
-        // Status line
+        // Status line with better formatting
         println!();
-        println!(" \x1b[38;5;245m[Auto]\x1b[0m │ \x1b[38;5;{}mContext ({}k / {}%)\x1b[0m │ \x1b[38;5;82m●\x1b[0m \x1b[38;5;220m{}\x1b[0m │ \x1b[38;5;245m{}\x1b[0m",
-            ctx_color, ctx_k, ctx_percent, model_display, path_display);
+        print!(" \x1b[38;5;{}m●\x1b[0m \x1b[38;5;{}m{}\x1b[0m",
+            DRACULA_GREEN, DRACULA_YELLOW, model_display);
+        print!(" \x1b[38;5;{}m│\x1b[0m ", DRACULA_COMMENT);
+        print!("\x1b[38;5;{}mContext: {}k ({}%)\x1b[0m", ctx_color, ctx_k, ctx_percent);
+        print!(" \x1b[38;5;{}m│\x1b[0m ", DRACULA_COMMENT);
+        println!("\x1b[38;5;{}m{}\x1b[0m", DRACULA_COMMENT, path_display);
+    }
+
+    /// Draw the input box frame
+    pub fn draw_input_box(&self) {
+        let w = self.term_width.min(120);
+        let border = "─".repeat(w - 2);
+
+        println!();
+        println!("\x1b[38;5;{}m┌{}┐\x1b[0m", DRACULA_COMMENT, border);
+        print!("\x1b[38;5;{}m│\x1b[0m \x1b[38;5;{}m❯\x1b[0m ", DRACULA_COMMENT, DRACULA_CYAN);
+    }
+
+    /// Close the input box after reading input
+    pub fn close_input_box(&self, _input: &str) {
+        let w = self.term_width.min(120);
+        let border = "─".repeat(w - 2);
+        println!("\x1b[38;5;{}m└{}┘\x1b[0m", DRACULA_COMMENT, border);
+    }
+
+    /// Draw bottom status bar with shortcuts
+    pub fn draw_shortcuts_bar(&self) {
+        let ctx_k = self.context_used / 1000;
+        let ctx_percent = self.get_context_percent();
+        let ctx_color = if ctx_percent > 80 { DRACULA_RED } else if ctx_percent > 50 { DRACULA_ORANGE } else { DRACULA_GREEN };
+
+        let model_short = if self.current_model.len() > 15 {
+            format!("{}...", &self.current_model[..12])
+        } else {
+            self.current_model.clone()
+        };
+
+        print!(" \x1b[38;5;{}m[{}k/{}%]\x1b[0m", ctx_color, ctx_k, ctx_percent);
+        print!(" \x1b[38;5;{}m│\x1b[0m", DRACULA_COMMENT);
+        print!(" \x1b[38;5;{}m●\x1b[0m \x1b[38;5;{}m{}\x1b[0m", DRACULA_GREEN, DRACULA_YELLOW, model_short);
+        print!(" \x1b[38;5;{}m│\x1b[0m", DRACULA_COMMENT);
+        print!(" \x1b[38;5;{}m@\x1b[0mfiles", DRACULA_CYAN);
+        print!(" \x1b[38;5;{}m/\x1b[0mcmds", DRACULA_PINK);
+        print!(" \x1b[38;5;{}m│\x1b[0m", DRACULA_COMMENT);
+        println!(" \x1b[38;5;{}m/help\x1b[0m", DRACULA_COMMENT);
     }
 
     pub fn print_model_switch(&self, model: &str, model_type: &str) {
@@ -165,14 +251,31 @@ impl UI {
         println!();
     }
 
-    pub fn print_thinking(&self, _frame: usize) {
-        print!("\r\x1b[K\x1b[38;5;75m◐\x1b[0m \x1b[38;5;245m{}\x1b[0m", self.strings.thinking());
+    pub fn print_thinking(&self, frame: usize) {
+        let spinners = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let dots = ["", ".", "..", "..."];
+        let s = spinners[frame % spinners.len()];
+        let d = dots[(frame / 3) % dots.len()];
+        print!("\r\x1b[K\x1b[38;5;{}m{}\x1b[0m \x1b[38;5;{}m{}{}\x1b[0m",
+            DRACULA_PURPLE, s, DRACULA_COMMENT, self.strings.thinking(), d);
         io::stdout().flush().unwrap();
     }
 
-    pub fn print_working(&self, _frame: usize, task: &str) {
-        print!("\r\x1b[K\x1b[38;5;220m◐\x1b[0m \x1b[38;5;245m{}\x1b[0m", task);
+    pub fn print_working(&self, frame: usize, task: &str) {
+        let spinners = ["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"];
+        let s = spinners[frame % spinners.len()];
+        print!("\r\x1b[K\x1b[38;5;{}m{}\x1b[0m \x1b[38;5;{}m{}\x1b[0m",
+            DRACULA_ORANGE, s, DRACULA_COMMENT, task);
         io::stdout().flush().unwrap();
+    }
+
+    /// Animated typing effect for text
+    pub fn print_typing(&self, text: &str, delay_ms: u64) {
+        for c in text.chars() {
+            print!("{}", c);
+            io::stdout().flush().unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+        }
     }
 
     pub fn clear_line(&self) {
