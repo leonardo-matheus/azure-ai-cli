@@ -1,0 +1,37 @@
+[package]
+name = "azure_ai_cli"
+version = "1.0.0"
+edition = "2021"
+description = "Interactive AI CLI for Azure AI Foundry models"
+authors = ["Leonardo M. Silva"]
+
+[[bin]]
+name = "aicli"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1.35", features = ["full"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+crossterm = "0.27"
+syntect = "5.1"
+dirs = "5.0"
+toml = "0.8"
+regex = "1.10"
+glob = "0.3"
+futures = "0.3"
+async-trait = "0.1"
+anyhow = "1.0"
+thiserror = "1.0"
+textwrap = "0.16"
+unicode-width = "0.1"
+futures-util = "0.3"
+rustyline = "14.0"
+rustyline-derive = "0.10"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
