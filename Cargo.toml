@@ -1,9 +1,15 @@
 [package]
-name = "azure_ai_cli"
+name = "aicli"
 version = "1.0.0"
 edition = "2021"
-description = "Interactive AI CLI for Azure AI Foundry models"
-authors = ["Leonardo M. Silva"]
+description = "A powerful CLI for Azure AI Foundry models (Claude, GPT, DeepSeek) inspired by Claude Code"
+authors = ["Leonardo M. Silva <leonardo-matheus@github.com>"]
+license = "MIT"
+repository = "https://github.com/leonardo-matheus/aicli"
+homepage = "https://github.com/leonardo-matheus/aicli"
+readme = "README.md"
+keywords = ["cli", "ai", "azure", "openai", "claude", "gpt", "chatbot"]
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "aicli"
